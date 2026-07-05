@@ -65,16 +65,37 @@ declare module 'hono' {
   }
 }
 
+/**
+ * DEV ONLY. If DEV_USER_ID is set and NODE_ENV is explicitly "development",
+ * requests with NO initData are treated as this user, so the Mini App can be
+ * exercised in a plain browser (no Telegram tunnel). This is an allowlist, not a
+ * denylist: an unset/other NODE_ENV disables it, so it can never activate in a
+ * deployment that merely forgot to set NODE_ENV. NEVER set DEV_USER_ID in prod.
+ */
+export function devUser(): TelegramUser | null {
+  if (process.env.NODE_ENV !== 'development') return null;
+  const id = Number(process.env.DEV_USER_ID);
+  if (!id || Number.isNaN(id)) return null;
+  return { id, first_name: process.env.DEV_USER_NAME ?? 'Dev User' };
+}
+
 /** Hono middleware: require and validate the Telegram initData header. */
 export function authMiddleware(botToken: string): MiddlewareHandler {
   return async (c, next) => {
     const initData = c.req.header('X-Telegram-Init-Data');
-    if (!initData) return c.json({ error: 'missing init data' }, 401);
 
-    const user = validateInitData(initData, botToken);
-    if (!user) return c.json({ error: 'invalid init data' }, 401);
+    // Present initData must be valid — a forged/expired header is always 401,
+    // even in dev. The dev bypass only applies when NO initData is sent at all.
+    if (initData) {
+      const user = validateInitData(initData, botToken);
+      if (!user) return c.json({ error: 'invalid init data' }, 401);
+      c.set('user', user);
+      return next();
+    }
 
-    c.set('user', user);
+    const dev = devUser();
+    if (!dev) return c.json({ error: 'missing init data' }, 401);
+    c.set('user', dev);
     await next();
   };
 }

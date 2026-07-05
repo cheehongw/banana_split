@@ -16,6 +16,8 @@ export const groups = sqliteTable('groups', {
   title: text('title').notNull(),
   telegramChatId: integer('telegram_chat_id'), // linked group chat, if any
   currency: text('currency').notNull().default('USD'),
+  avatar: text('avatar'), // optional emoji/branding shown on the group
+  notificationsEnabled: integer('notifications_enabled', { mode: 'boolean' }).notNull().default(true),
   createdAt: integer('created_at').notNull().default(sql`(unixepoch())`),
 });
 
@@ -44,6 +46,7 @@ export const expenses = sqliteTable('expenses', {
     .notNull()
     .references(() => users.id),
   splitType: text('split_type', { enum: ['equal', 'shares', 'exact'] }).notNull(),
+  category: text('category'), // optional category id (see @banana-split/shared categories)
   createdBy: integer('created_by')
     .notNull()
     .references(() => users.id),
@@ -77,5 +80,6 @@ export const settlements = sqliteTable('settlements', {
     .notNull()
     .references(() => users.id),
   amount: integer('amount').notNull(), // minor units
+  currency: text('currency').notNull().default('USD'),
   createdAt: integer('created_at').notNull().default(sql`(unixepoch())`),
 });
