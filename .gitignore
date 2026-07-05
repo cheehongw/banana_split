@@ -11,6 +11,9 @@ build/
 
 # SQLite database files (created at runtime)
 data/
+
+# Local Claude Code state
+.claude/
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal
