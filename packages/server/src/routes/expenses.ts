@@ -1,7 +1,8 @@
-import { resolveSplits, type SplitType } from '@banana-split/shared';
+import { formatMoney, isKnownCategory, resolveSplits, type SplitType } from '@banana-split/shared';
 import { eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { randomUUID } from 'node:crypto';
+import { assertAllMembers, assertMember } from '../authz';
 import { notifyGroup } from '../bot';
 import { db, schema } from '../db';
 
@@ -14,6 +15,8 @@ interface CreateExpenseBody {
   paidBy: number; // Telegram user id
   splitType: SplitType;
   participants: number[]; // user ids sharing the expense
+  category?: string; // optional category id
+  currency?: string; // ISO 4217; defaults to the group's currency
   shares?: Record<number, number>; // required for 'shares'
   exact?: Record<number, number>; // required for 'exact'
 }
@@ -22,6 +25,7 @@ interface CreateExpenseBody {
 expensesRoute.get('/', (c) => {
   const groupId = c.req.query('groupId');
   if (!groupId) return c.json({ error: 'groupId required' }, 400);
+  assertMember(groupId, c.get('user').id);
 
   const rows = db
     .select()
@@ -54,6 +58,10 @@ expensesRoute.post('/', async (c) => {
   const group = db.select().from(schema.groups).where(eq(schema.groups.id, body.groupId)).get();
   if (!group) return c.json({ error: 'group not found' }, 404);
 
+  // The caller, the payer, and every participant must belong to the group.
+  assertMember(body.groupId, user.id);
+  assertAllMembers(body.groupId, [body.paidBy, ...body.participants]);
+
   // Turn the chosen split type into exact per-user amounts.
   let splits;
   try {
@@ -66,15 +74,17 @@ expensesRoute.post('/', async (c) => {
   }
 
   const id = randomUUID();
+  const currency = body.currency && /^[A-Za-z]{3}$/.test(body.currency) ? body.currency.toUpperCase() : group.currency;
   db.insert(schema.expenses)
     .values({
       id,
       groupId: body.groupId,
       description: body.description.trim(),
       amount: body.amount,
-      currency: group.currency,
+      currency,
       paidBy: body.paidBy,
       splitType: body.splitType,
+      category: body.category && isKnownCategory(body.category) ? body.category : null,
       createdBy: user.id,
     })
     .run();
@@ -83,11 +93,10 @@ expensesRoute.post('/', async (c) => {
     .values(splits.map((s) => ({ expenseId: id, userId: s.userId, amount: s.amount, shares: s.shares ?? null })))
     .run();
 
-  if (group.telegramChatId) {
-    const amountStr = (body.amount / 100).toFixed(2);
+  if (group.telegramChatId && group.notificationsEnabled) {
     await notifyGroup(
       group.telegramChatId,
-      `🍌 New expense: ${body.description.trim()} — ${group.currency} ${amountStr}`,
+      `🍌 New expense: ${body.description.trim()} — ${formatMoney(body.amount, currency)}`,
     );
   }
 

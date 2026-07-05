@@ -1,0 +1,17 @@
+node_modules
+**/node_modules
+dist
+**/dist
+*.tsbuildinfo
+.git
+.gitignore
+.claude
+data
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+.env
+.env.*
+!.env.production.example
+npm-debug.log*
+.DS_Store

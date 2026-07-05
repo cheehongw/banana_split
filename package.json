@@ -11,6 +11,8 @@
     "dev:server": "npm run dev -w @banana-split/server",
     "dev:webapp": "npm run dev -w @banana-split/webapp",
     "build": "npm run build --workspaces --if-present",
+    "build:webapp": "npm run build -w @banana-split/webapp",
+    "start:prod": "node --import tsx packages/server/src/index.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",

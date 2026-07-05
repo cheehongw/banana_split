@@ -72,6 +72,17 @@ describe('resolveSplits (dispatch)', () => {
     expect(sum(resolveSplits('equal', 1000, [1, 2, 3]))).toBe(1000);
   });
 
+  it('rejects non-positive or non-integer totals', () => {
+    expect(() => resolveSplits('equal', 0, [1])).toThrow(/positive integer/);
+    expect(() => resolveSplits('equal', -1000, [1, 2])).toThrow(/positive integer/);
+    expect(() => resolveSplits('equal', 10.5, [1, 2])).toThrow(/positive integer/);
+  });
+
+  it('rejects shares/exact maps that reference a non-participant', () => {
+    expect(() => resolveSplits('shares', 1000, [1, 2], { shares: { 1: 1, 999: 1 } })).toThrow(/not a participant/);
+    expect(() => resolveSplits('exact', 1000, [1, 2], { exact: { 1: 500, 999: 500 } })).toThrow(/not a participant/);
+  });
+
   it('routes to shares and requires a shares map', () => {
     expect(sum(resolveSplits('shares', 1000, [1, 2], { shares: { 1: 1, 2: 1 } }))).toBe(1000);
     expect(() => resolveSplits('shares', 1000, [1, 2])).toThrow(/shares map required/);

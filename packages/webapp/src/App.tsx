@@ -1,52 +1,71 @@
-import type { Group } from '@banana-split/shared';
+import type { GroupDetail } from '@banana-split/shared';
 import { useEffect, useState } from 'react';
-import { api } from './lib/api';
+import { api, startParam } from './lib/api';
+import { AddExpense } from './screens/AddExpense';
+import { GroupDetailScreen } from './screens/GroupDetail';
+import { Groups } from './screens/Groups';
+import { GroupSettings } from './screens/GroupSettings';
+import { ManageUsers } from './screens/ManageUsers';
+import { Stats } from './screens/Stats';
+
+type View =
+  | { name: 'groups' }
+  | { name: 'group'; groupId: string }
+  | { name: 'addExpense'; detail: GroupDetail }
+  | { name: 'stats'; groupId: string }
+  | { name: 'settings'; groupId: string }
+  | { name: 'manageUsers'; groupId: string };
 
 export function App() {
-  const [groups, setGroups] = useState<Group[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [view, setView] = useState<View>({ name: 'groups' });
 
+  // Opened via the bot's deep link (t.me/<bot>?startapp=<groupId>): join that
+  // group as the current user, then jump straight into it.
   useEffect(() => {
+    const groupId = startParam();
+    if (!groupId) return;
     api
-      .listGroups()
-      .then(setGroups)
-      .catch((e: unknown) => setError(String(e)))
-      .finally(() => setLoading(false));
+      .joinGroup(groupId)
+      .then(() => setView({ name: 'group', groupId }))
+      .catch(() => {
+        /* group gone or not joinable — fall back to the groups list */
+      });
   }, []);
 
-  return (
-    <main style={{ padding: 16, fontFamily: 'system-ui, sans-serif' }}>
-      <h1>🍌 Banana Split</h1>
-
-      {error && <p style={{ color: 'crimson' }}>{error}</p>}
-      {loading && <p>Loading…</p>}
-
-      {!loading && (
-        <section>
-          <h2>Your groups</h2>
-          {groups.length === 0 ? (
-            <p>No groups yet.</p>
-          ) : (
-            <ul>
-              {groups.map((g) => (
-                <li key={g.id}>
-                  {g.title} <small>({g.currency})</small>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      )}
-
-      {/*
-        TODO (UI, build deliberately):
-        - "Create group" form
-        - Group detail: expenses list + activity feed
-        - Add-expense form (payer, amount, split type: equal / shares / exact)
-        - Balances view + "Settle up" using /settlements/balances suggestions
-        - Wire Telegram MainButton for primary actions; use themeParams for styling
-      */}
-    </main>
-  );
+  switch (view.name) {
+    case 'group':
+      return (
+        <GroupDetailScreen
+          groupId={view.groupId}
+          onBack={() => setView({ name: 'groups' })}
+          onAddExpense={(detail) => setView({ name: 'addExpense', detail })}
+          onOpenStats={() => setView({ name: 'stats', groupId: view.groupId })}
+          onOpenSettings={() => setView({ name: 'settings', groupId: view.groupId })}
+          onOpenManageUsers={() => setView({ name: 'manageUsers', groupId: view.groupId })}
+        />
+      );
+    case 'addExpense':
+      return (
+        <AddExpense
+          detail={view.detail}
+          onBack={() => setView({ name: 'group', groupId: view.detail.group.id })}
+          onDone={() => setView({ name: 'group', groupId: view.detail.group.id })}
+        />
+      );
+    case 'stats':
+      return <Stats groupId={view.groupId} onBack={() => setView({ name: 'group', groupId: view.groupId })} />;
+    case 'settings':
+      return (
+        <GroupSettings
+          groupId={view.groupId}
+          onBack={() => setView({ name: 'group', groupId: view.groupId })}
+          onOpenManageUsers={() => setView({ name: 'manageUsers', groupId: view.groupId })}
+        />
+      );
+    case 'manageUsers':
+      return <ManageUsers groupId={view.groupId} onBack={() => setView({ name: 'group', groupId: view.groupId })} />;
+    case 'groups':
+    default:
+      return <Groups onOpen={(groupId) => setView({ name: 'group', groupId })} />;
+  }
 }
