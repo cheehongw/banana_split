@@ -18,12 +18,20 @@ export interface Group {
   title: string;
   telegramChatId?: number | null; // linked group chat, if the bot was added to one
   currency: string; // ISO 4217, e.g. "USD"
+  avatar?: string | null; // optional emoji/branding
+  notificationsEnabled: boolean; // whether the bot posts activity to the linked chat
   createdAt: number; // unix seconds
 }
 
 export interface GroupMember {
   groupId: string;
   userId: number;
+}
+
+/** A group plus its resolved members — the payload for the group-detail screen. */
+export interface GroupDetail {
+  group: Group;
+  members: User[];
 }
 
 /** One member's share of a single expense. */
@@ -43,6 +51,7 @@ export interface Expense {
   currency: string;
   paidBy: number; // Telegram user id of who fronted the money
   splitType: SplitType;
+  category?: string | null; // category id (see categories.ts); null = uncategorized
   splits: ExpenseSplit[];
   createdBy: number;
   createdAt: number;
@@ -54,18 +63,21 @@ export interface Settlement {
   fromUser: number; // payer
   toUser: number; // payee
   amount: number; // minor units
+  currency: string; // ISO 4217 — settlements are per-currency
   createdAt: number;
 }
 
-/** Net position of a member in a group. Positive = is owed money; negative = owes money. */
+/** Net position of a member in a group, per currency. Positive = owed; negative = owes. */
 export interface Balance {
   userId: number;
+  currency: string;
   net: number; // minor units
 }
 
-/** A single suggested payment produced by debt simplification. */
+/** A single suggested payment produced by debt simplification, in one currency. */
 export interface SettlementSuggestion {
   fromUser: number;
   toUser: number;
   amount: number; // minor units
+  currency: string;
 }

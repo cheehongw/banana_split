@@ -48,6 +48,16 @@ export interface SplitOptions {
   exact?: Record<number, number>;
 }
 
+/** Every key in a shares/exact map must be one of the expense's participants. */
+function assertKeysAreParticipants(map: Record<number, number>, participants: number[]): void {
+  const allowed = new Set(participants);
+  for (const key of Object.keys(map)) {
+    if (!allowed.has(Number(key))) {
+      throw new Error(`split references user ${key} who is not a participant`);
+    }
+  }
+}
+
 /** Dispatch to the right split resolver based on `splitType`. */
 export function resolveSplits(
   splitType: SplitType,
@@ -55,14 +65,19 @@ export function resolveSplits(
   participants: number[],
   opts: SplitOptions = {},
 ): ExpenseSplit[] {
+  if (!Number.isInteger(total) || total <= 0) {
+    throw new Error('amount must be a positive integer in minor units');
+  }
   switch (splitType) {
     case 'equal':
       return resolveEqualSplit(total, participants);
     case 'shares':
       if (!opts.shares) throw new Error('shares map required for shares split');
+      assertKeysAreParticipants(opts.shares, participants);
       return resolveSharesSplit(total, opts.shares);
     case 'exact':
       if (!opts.exact) throw new Error('exact map required for exact split');
+      assertKeysAreParticipants(opts.exact, participants);
       return resolveExactSplit(total, opts.exact);
     default:
       throw new Error(`unknown split type: ${splitType as string}`);
