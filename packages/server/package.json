@@ -1,0 +1,24 @@
+{
+  "name": "@banana-split/server",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./src/index.ts",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@banana-split/shared": "*",
+    "@hono/node-server": "^1.13.0",
+    "better-sqlite3": "^11.5.0",
+    "drizzle-orm": "^0.36.0",
+    "grammy": "^1.30.0",
+    "hono": "^4.6.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.0",
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0"
+  }
+}

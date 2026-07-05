@@ -1,0 +1,25 @@
+{
+  "name": "banana-split",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Telegram Mini App for splitting shared expenses (a Splitwise clone).",
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:server": "npm run dev -w @banana-split/server",
+    "dev:webapp": "npm run dev -w @banana-split/webapp",
+    "build": "npm run build --workspaces --if-present",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.28.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}
