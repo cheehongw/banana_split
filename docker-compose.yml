@@ -1,0 +1,37 @@
+# Banana Split — homelab deploy: the app (Hono: static UI + API + long-polling
+# bot) plus a Tailscale Funnel sidecar that publishes it on a public *.ts.net
+# HTTPS URL. Outbound-only: nothing new is exposed on your network.
+#
+# Setup:
+#   1. cp .env.production.example .env   # fill BOT_TOKEN, WEBAPP_URL, TS_AUTHKEY
+#   2. docker compose up -d --build       # build on the homelab host (arch match)
+#   3. Set the Mini App URL in @BotFather to your https://<host>.<tailnet>.ts.net
+
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - bananadata:/data
+    expose:
+      - "3000" # internal only; reached by the tailscale sidecar over the compose network
+
+  tailscale:
+    image: tailscale/tailscale:latest
+    hostname: banana # -> https://banana.<your-tailnet>.ts.net
+    restart: unless-stopped
+    environment:
+      - TS_AUTHKEY=${TS_AUTHKEY}
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_USERSPACE=true
+      - TS_SERVE_CONFIG=/config/funnel.json
+    volumes:
+      - tsstate:/var/lib/tailscale
+      - ./deploy/tailscale-funnel.json:/config/funnel.json:ro
+    depends_on:
+      - app
+
+volumes:
+  bananadata:
+  tsstate:
