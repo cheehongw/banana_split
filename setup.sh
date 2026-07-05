@@ -78,9 +78,15 @@ else
   die "Cannot reach the Docker daemon. Is it running?  (try: $SUDO systemctl start docker)"
 fi
 
-$DOCKER compose version >/dev/null 2>&1 || die "Docker Compose plugin missing. Install the 'docker-compose-plugin' package."
-COMPOSE="$DOCKER compose"
-ok "Docker and the Compose plugin are available."
+# prefer the 'docker compose' plugin; fall back to the standalone docker-compose
+if $DOCKER compose version >/dev/null 2>&1; then
+  COMPOSE="$DOCKER compose"
+elif command -v docker-compose >/dev/null 2>&1; then
+  COMPOSE="${SUDO:+$SUDO }docker-compose"
+else
+  die "No Compose found. Install the 'docker-compose-plugin' package (or the standalone docker-compose)."
+fi
+ok "Using Compose: $COMPOSE"
 
 # --- 2. .env -------------------------------------------------------------------
 get_env() { [ -f "$ENV_FILE" ] && grep -E "^$1=" "$ENV_FILE" | tail -n1 | cut -d= -f2- || true; }
