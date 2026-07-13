@@ -165,3 +165,42 @@ export function SectionHeader({ children }: { children: ReactNode }) {
     </h2>
   );
 }
+
+/** A stacked icon-over-label action tile. Equal width, single-line label — so a
+ * row of them stays visually uniform regardless of label length. */
+export function QuickAction({ icon, label, onClick }: { icon: string; label: string; onClick?: () => void }) {
+  return (
+    <button
+      className="bs-button"
+      onClick={onClick}
+      style={{
+        flex: 1,
+        minWidth: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 4,
+        padding: '10px 8px',
+        borderRadius: 10,
+        border: `1px solid ${theme.hint}`,
+        background: 'transparent',
+        color: theme.text,
+        cursor: 'pointer',
+      }}
+    >
+      <span style={{ fontSize: 20, lineHeight: 1 }}>{icon}</span>
+      <span
+        style={{
+          fontSize: 13,
+          fontWeight: 600,
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          maxWidth: '100%',
+        }}
+      >
+        {label}
+      </span>
+    </button>
+  );
+}

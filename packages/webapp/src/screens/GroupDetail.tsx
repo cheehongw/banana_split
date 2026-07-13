@@ -12,7 +12,7 @@ import { api } from '../lib/api';
 import { groupByDay } from '../lib/dates';
 import { formatMoney } from '../lib/money';
 import { useMainButton } from '../lib/useMainButton';
-import { Button, Card, EmptyState, inputStyle, Screen, SectionHeader, Skeleton, SkeletonCard, theme } from '../ui';
+import { Button, Card, EmptyState, inputStyle, QuickAction, Screen, SectionHeader, Skeleton, SkeletonCard, theme } from '../ui';
 
 export function GroupDetailScreen({
   groupId,
@@ -154,15 +154,9 @@ export function GroupDetailScreen({
 
       {/* Quick actions */}
       <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-        <div style={{ flex: 1 }}>
-          <Button variant="secondary" onClick={onOpenStats}>📊 Stats</Button>
-        </div>
-        <div style={{ flex: 1 }}>
-          <Button variant="secondary" onClick={onOpenManageUsers}>👥 Members</Button>
-        </div>
-        <div style={{ flex: 1 }}>
-          <Button variant="secondary" onClick={onOpenSettings}>⚙️ Settings</Button>
-        </div>
+        <QuickAction icon="📊" label="Stats" onClick={onOpenStats} />
+        <QuickAction icon="👥" label="Members" onClick={onOpenManageUsers} />
+        <QuickAction icon="⚙️" label="Settings" onClick={onOpenSettings} />
       </div>
 
       {!hasMainButton && (
