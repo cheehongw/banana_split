@@ -13,16 +13,25 @@ const webAppUrl = process.env.WEBAPP_URL ?? 'https://example.com';
 // Singleton bot instance, imported by both the server entry and API routes.
 export const bot = new Bot(token);
 
+// Never let a handler error crash the middleware run (grammY logs a loud
+// "No error handler was set!" otherwise). Bot failures must not take down the
+// long-polling loop or the HTTP server sharing this process.
+bot.catch((err) => {
+  console.error(`Bot error on update ${err.ctx.update.update_id}:`, err.error);
+});
+
 bot.command('start', async (ctx) => {
-  await ctx.reply(
+
+  const text =
     'Welcome to Melon Splat 🍈\nSplit shared expenses with your group — no signup needed.',
-    {
-      reply_markup: {
-        // web_app buttons are only allowed in private chats.
-        inline_keyboard: [[{ text: 'Open Melon Splat', web_app: { url: webAppUrl } }]],
-      },
-    },
-  );
+  // web_app inline buttons are ONLY valid in private chats. In a group, Telegram
+  // rejects them (BUTTON_TYPE_INVALID), so fall back to a startapp deep link that
+  // opens the Mini App from the bot chat.
+  const button =
+    ctx.chat.type === 'private'
+      ? { text: 'Open Melon Splat', web_app: { url: webAppUrl } }
+      : { text: 'Open Melon Splat', url: `https://t.me/${ctx.me.username}?startapp` };
+  await ctx.reply(text, { reply_markup: { inline_keyboard: [[button]] } });
 });
 
 /**
