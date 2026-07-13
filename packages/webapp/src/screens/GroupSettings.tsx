@@ -7,7 +7,7 @@ import { resetTutorial } from '../lib/tutorial';
 import { Card, Screen, theme } from '../ui';
 
 const THEME_MODES: ThemeMode[] = ['auto', 'light', 'dark'];
-const AVATARS = ['🍌', '🏠', '✈️', '🍽️', '🎉', '🏔️', '🚗', '🏖️', '🎿', '🍻'];
+const AVATARS = ['🍈', '🏠', '✈️', '🍽️', '🎉', '🏔️', '🚗', '🏖️', '🎿', '🍻'];
 
 export function GroupSettings({
   groupId,

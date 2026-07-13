@@ -96,7 +96,7 @@ expensesRoute.post('/', async (c) => {
   if (group.telegramChatId && group.notificationsEnabled) {
     await notifyGroup(
       group.telegramChatId,
-      `🍌 New expense: ${body.description.trim()} — ${formatMoney(body.amount, currency)}`,
+      `🍈 New expense: ${body.description.trim()} — ${formatMoney(body.amount, currency)}`,
     );
   }
 

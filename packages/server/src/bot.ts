@@ -15,11 +15,11 @@ export const bot = new Bot(token);
 
 bot.command('start', async (ctx) => {
   await ctx.reply(
-    'Welcome to Banana Split 🍌\nSplit shared expenses with your group — no signup needed.',
+    'Welcome to Melon Splat 🍈\nSplit shared expenses with your group — no signup needed.',
     {
       reply_markup: {
         // web_app buttons are only allowed in private chats.
-        inline_keyboard: [[{ text: 'Open Banana Split', web_app: { url: webAppUrl } }]],
+        inline_keyboard: [[{ text: 'Open Melon Splat', web_app: { url: webAppUrl } }]],
       },
     },
   );
@@ -57,8 +57,8 @@ bot.on('my_chat_member', async (ctx) => {
     // In a group we can't use a web_app inline button; a startapp deep link opens
     // the Mini App (with the group id as start_param, so the opener auto-joins).
     const deepLink = `https://t.me/${ctx.me.username}?startapp=${group.id}`;
-    await ctx.reply('Banana Split 🍌 is linked to this chat. Tap below to open it and split expenses.', {
-      reply_markup: { inline_keyboard: [[{ text: 'Open Banana Split', url: deepLink }]] },
+    await ctx.reply('Melon Splat 🍈 is linked to this chat. Tap below to open it and split expenses.', {
+      reply_markup: { inline_keyboard: [[{ text: 'Open Melon Splat', url: deepLink }]] },
     });
   } else if (removed) {
     // Stop targeting this chat for notifications; keep the group and its data.
@@ -71,18 +71,18 @@ bot.on('my_chat_member', async (ctx) => {
  */
 bot.command('balance', async (ctx) => {
   if (ctx.chat.type !== 'group' && ctx.chat.type !== 'supergroup') {
-    await ctx.reply('Use /balance inside a group chat linked to Banana Split.');
+    await ctx.reply('Use /balance inside a group chat linked to Melon Splat.');
     return;
   }
   const group = db.select().from(schema.groups).where(eq(schema.groups.telegramChatId, ctx.chat.id)).get();
   if (!group) {
-    await ctx.reply('This chat isn’t linked to a Banana Split group yet — add me and try again.');
+    await ctx.reply('This chat isn’t linked to a Melon Splat group yet — add me and try again.');
     return;
   }
 
   const { suggestions } = computeGroupBalances(group.id);
   if (suggestions.length === 0) {
-    await ctx.reply(`🍌 ${group.title}: everyone’s settled up! 🎉`);
+    await ctx.reply(`🍈 ${group.title}: everyone’s settled up! 🎉`);
     return;
   }
 
@@ -91,7 +91,7 @@ bot.command('balance', async (ctx) => {
   const lines = suggestions.map(
     (s) => `• ${nameOf(s.fromUser)} → ${nameOf(s.toUser)}: ${formatMoney(s.amount, s.currency)}`,
   );
-  await ctx.reply(`🍌 ${group.title} — settle up:\n${lines.join('\n')}`);
+  await ctx.reply(`🍈 ${group.title} — settle up:\n${lines.join('\n')}`);
 });
 
 /**

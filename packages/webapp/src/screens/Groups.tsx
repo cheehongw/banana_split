@@ -54,13 +54,13 @@ export function Groups({ onOpen }: { onOpen: (groupId: string) => void }) {
   });
 
   return (
-    <Screen title="🍌 Banana Split">
+    <Screen title="🍈 Melon Splat">
       {error && <p style={{ color: theme.destructive }}>{error}</p>}
 
       {showTutorial && (
         <Card>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-            <strong>Welcome to Banana Split 🍌</strong>
+            <strong>Welcome to Melon Splat 🍈</strong>
             <button onClick={dismissTutorial} style={{ background: 'none', border: 'none', color: theme.link, cursor: 'pointer' }}>
               Dismiss
             </button>
@@ -102,7 +102,7 @@ export function Groups({ onOpen }: { onOpen: (groupId: string) => void }) {
         </>
       ) : groups.length === 0 ? (
         <EmptyState
-          emoji="🍌"
+          emoji="🍈"
           title="No groups yet"
           hint="Create one above for a trip or household to start splitting expenses."
         />
@@ -123,7 +123,7 @@ export function Groups({ onOpen }: { onOpen: (groupId: string) => void }) {
                   fontSize: 20,
                 }}
               >
-                {g.avatar || '🍌'}
+                {g.avatar || '🍈'}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <strong style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
