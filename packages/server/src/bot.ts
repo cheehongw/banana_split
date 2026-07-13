@@ -21,9 +21,8 @@ bot.catch((err) => {
 });
 
 bot.command('start', async (ctx) => {
-
   const text =
-    'Welcome to Melon Splat 🍈\nSplit shared expenses with your group — no signup needed.',
+    'Welcome to Melon Splat 🍈\nSplit shared expenses with your group — no signup needed.';
   // web_app inline buttons are ONLY valid in private chats. In a group, Telegram
   // rejects them (BUTTON_TYPE_INVALID), so fall back to a startapp deep link that
   // opens the Mini App from the bot chat.
