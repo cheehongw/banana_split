@@ -115,8 +115,16 @@ export function GroupDetailScreen({
   };
   const groupTotals = sumByCurrency((e) => e.amount);
   const yourTotals = me ? sumByCurrency((e) => e.splits.find((s) => s.userId === me.id)?.amount ?? 0) : [];
-  const totalsLabel = (totals: [string, number][]) =>
-    totals.length === 0 ? formatMoney(0, currency) : totals.map(([cur, amt]) => formatMoney(amt, cur)).join(' · ');
+  // Each currency on its own line — currencies never sum, and ' · ' joins get
+  // cramped / overflow once there are 3+.
+  const renderTotals = (totals: [string, number][]) => {
+    const rows = totals.length === 0 ? [[currency, 0] as [string, number]] : totals;
+    return rows.map(([cur, amt]) => (
+      <div key={cur} style={{ fontSize: 17, fontWeight: 700 }}>
+        {formatMoney(amt, cur)}
+      </div>
+    ));
+  };
 
   // Personalized outstanding debts from the simplified suggestions.
   const youOwe = me ? suggestions.filter((s) => s.fromUser === me.id) : [];
@@ -139,16 +147,16 @@ export function GroupDetailScreen({
       {/* Summary cards */}
       <div style={{ display: 'flex', gap: 8 }}>
         <div style={{ ...summaryCardStyle }}>
-          <div style={{ fontSize: 13, color: theme.hint }}>
+          <div style={{ fontSize: 13, color: theme.hint, marginBottom: 4 }}>
             Group Total <span title="Sum of all expenses in this group, per currency">ⓘ</span>
           </div>
-          <div style={{ fontSize: 20, fontWeight: 700 }}>{totalsLabel(groupTotals)}</div>
+          {renderTotals(groupTotals)}
         </div>
         <div style={{ ...summaryCardStyle }}>
-          <div style={{ fontSize: 13, color: theme.hint }}>
+          <div style={{ fontSize: 13, color: theme.hint, marginBottom: 4 }}>
             Your Total <span title="Your share across all expenses, per currency">ⓘ</span>
           </div>
-          <div style={{ fontSize: 20, fontWeight: 700 }}>{totalsLabel(yourTotals)}</div>
+          {renderTotals(yourTotals)}
         </div>
       </div>
 
