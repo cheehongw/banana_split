@@ -18,7 +18,7 @@ RUN npm run build:webapp
 FROM node:22-bookworm-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production \
-    WEBAPP_DIST=./packages/webapp/dist \
+    WEBAPP_DIST=/app/packages/webapp/dist \
     DATABASE_URL=/data/banana-split.sqlite \
     PORT=3000
 
@@ -30,5 +30,10 @@ COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/tsconfig.base.json ./tsconfig.base.json
 COPY --from=builder /app/packages ./packages
 
+# Run from the server workspace so Node's ESM resolver finds `tsx` (and its
+# esbuild dep), which npm nested under packages/server/node_modules rather than
+# hoisting to the root. cwd-relative paths are avoided elsewhere (env.ts and the
+# migrations resolve via import.meta.url; WEBAPP_DIST is absolute above).
+WORKDIR /app/packages/server
 EXPOSE 3000
-CMD ["node", "--import", "tsx", "packages/server/src/index.ts"]
+CMD ["node", "--import", "tsx", "src/index.ts"]
