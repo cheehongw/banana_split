@@ -63,12 +63,14 @@ export function Button({
   const primary = variant === 'primary';
   return (
     <button
+      className="bs-button"
       onClick={onClick}
       disabled={disabled}
       style={{
         width: '100%',
         padding: '12px 16px',
         fontSize: 16,
+        fontWeight: 600,
         borderRadius: 10,
         border: primary ? 'none' : `1px solid ${theme.hint}`,
         background: primary ? theme.button : 'transparent',
@@ -85,7 +87,7 @@ export function Button({
 export function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label style={{ display: 'block', marginBottom: 12 }}>
-      <span style={{ display: 'block', fontSize: 13, color: theme.hint, marginBottom: 4 }}>{label}</span>
+      <span style={{ display: 'block', fontSize: 13, fontWeight: 500, color: theme.hint, marginBottom: 6 }}>{label}</span>
       {children}
     </label>
   );
@@ -105,16 +107,100 @@ export const inputStyle: CSSProperties = {
 export function Card({ children, onClick }: { children: ReactNode; onClick?: () => void }) {
   return (
     <div
+      className={onClick ? 'bs-card bs-card--tappable' : 'bs-card'}
       onClick={onClick}
       style={{
         background: theme.secondaryBg,
         borderRadius: 12,
         padding: 14,
         marginBottom: 10,
-        cursor: onClick ? 'pointer' : 'default',
+        boxShadow: 'var(--bs-shadow)',
       }}
     >
       {children}
     </div>
+  );
+}
+
+/** A shimmering placeholder block for loading states. */
+export function Skeleton({ height = 16, width = '100%', style }: { height?: number | string; width?: number | string; style?: CSSProperties }) {
+  return <div className="bs-skeleton" style={{ height, width, ...style }} />;
+}
+
+/** A full-width card of shimmering lines, matching the Card silhouette. */
+export function SkeletonCard() {
+  return (
+    <div style={{ background: theme.secondaryBg, borderRadius: 12, padding: 14, marginBottom: 10 }}>
+      <Skeleton height={16} width="55%" />
+      <Skeleton height={12} width="35%" style={{ marginTop: 8 }} />
+    </div>
+  );
+}
+
+/** A friendly, centered empty state with an emoji, title, and optional hint. */
+export function EmptyState({ emoji, title, hint }: { emoji: string; title: string; hint?: string }) {
+  return (
+    <div style={{ textAlign: 'center', padding: '32px 16px', color: theme.hint }}>
+      <div style={{ fontSize: 40, lineHeight: 1, marginBottom: 10 }}>{emoji}</div>
+      <div style={{ fontSize: 16, fontWeight: 600, color: theme.text, marginBottom: 4 }}>{title}</div>
+      {hint && <div style={{ fontSize: 14, lineHeight: 1.5 }}>{hint}</div>}
+    </div>
+  );
+}
+
+/** Section header — consistent size/weight/spacing across screens. */
+export function SectionHeader({ children }: { children: ReactNode }) {
+  return (
+    <h2
+      style={{
+        fontSize: 13,
+        fontWeight: 600,
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+        color: theme.hint,
+        margin: '24px 0 10px',
+      }}
+    >
+      {children}
+    </h2>
+  );
+}
+
+/** A stacked icon-over-label action tile. Equal width, single-line label — so a
+ * row of them stays visually uniform regardless of label length. */
+export function QuickAction({ icon, label, onClick }: { icon: string; label: string; onClick?: () => void }) {
+  return (
+    <button
+      className="bs-button"
+      onClick={onClick}
+      style={{
+        flex: 1,
+        minWidth: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 4,
+        padding: '10px 8px',
+        borderRadius: 10,
+        border: `1px solid ${theme.hint}`,
+        background: 'transparent',
+        color: theme.text,
+        cursor: 'pointer',
+      }}
+    >
+      <span style={{ fontSize: 20, lineHeight: 1 }}>{icon}</span>
+      <span
+        style={{
+          fontSize: 13,
+          fontWeight: 600,
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          maxWidth: '100%',
+        }}
+      >
+        {label}
+      </span>
+    </button>
   );
 }

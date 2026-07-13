@@ -2,6 +2,7 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import { applyThemeMode, getThemeMode } from './lib/theme';
+import './styles.css';
 
 // Telegram injects window.Telegram.WebApp via telegram-web-app.js (see index.html).
 const tg = window.Telegram?.WebApp;

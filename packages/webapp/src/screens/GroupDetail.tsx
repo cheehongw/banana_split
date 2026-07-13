@@ -12,7 +12,7 @@ import { api } from '../lib/api';
 import { groupByDay } from '../lib/dates';
 import { formatMoney } from '../lib/money';
 import { useMainButton } from '../lib/useMainButton';
-import { Button, Card, inputStyle, Screen, theme } from '../ui';
+import { Button, Card, EmptyState, inputStyle, QuickAction, Screen, SectionHeader, Skeleton, SkeletonCard, theme } from '../ui';
 
 export function GroupDetailScreen({
   groupId,
@@ -88,7 +88,18 @@ export function GroupDetailScreen({
   if (!detail) {
     return (
       <Screen title="Group" onBack={onBack}>
-        {error ? <p style={{ color: theme.destructive }}>{error}</p> : <p>Loading…</p>}
+        {error ? (
+          <p style={{ color: theme.destructive }}>{error}</p>
+        ) : (
+          <>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+              <Skeleton height={64} style={{ flex: 1, borderRadius: 12 }} />
+              <Skeleton height={64} style={{ flex: 1, borderRadius: 12 }} />
+            </div>
+            <SkeletonCard />
+            <SkeletonCard />
+          </>
+        )}
       </Screen>
     );
   }
@@ -104,8 +115,16 @@ export function GroupDetailScreen({
   };
   const groupTotals = sumByCurrency((e) => e.amount);
   const yourTotals = me ? sumByCurrency((e) => e.splits.find((s) => s.userId === me.id)?.amount ?? 0) : [];
-  const totalsLabel = (totals: [string, number][]) =>
-    totals.length === 0 ? formatMoney(0, currency) : totals.map(([cur, amt]) => formatMoney(amt, cur)).join(' · ');
+  // Each currency on its own line — currencies never sum, and ' · ' joins get
+  // cramped / overflow once there are 3+.
+  const renderTotals = (totals: [string, number][]) => {
+    const rows = totals.length === 0 ? [[currency, 0] as [string, number]] : totals;
+    return rows.map(([cur, amt]) => (
+      <div key={cur} style={{ fontSize: 17, fontWeight: 700 }}>
+        {formatMoney(amt, cur)}
+      </div>
+    ));
+  };
 
   // Personalized outstanding debts from the simplified suggestions.
   const youOwe = me ? suggestions.filter((s) => s.fromUser === me.id) : [];
@@ -128,30 +147,24 @@ export function GroupDetailScreen({
       {/* Summary cards */}
       <div style={{ display: 'flex', gap: 8 }}>
         <div style={{ ...summaryCardStyle }}>
-          <div style={{ fontSize: 13, color: theme.hint }}>
+          <div style={{ fontSize: 13, color: theme.hint, marginBottom: 4 }}>
             Group Total <span title="Sum of all expenses in this group, per currency">ⓘ</span>
           </div>
-          <div style={{ fontSize: 20, fontWeight: 700 }}>{totalsLabel(groupTotals)}</div>
+          {renderTotals(groupTotals)}
         </div>
         <div style={{ ...summaryCardStyle }}>
-          <div style={{ fontSize: 13, color: theme.hint }}>
+          <div style={{ fontSize: 13, color: theme.hint, marginBottom: 4 }}>
             Your Total <span title="Your share across all expenses, per currency">ⓘ</span>
           </div>
-          <div style={{ fontSize: 20, fontWeight: 700 }}>{totalsLabel(yourTotals)}</div>
+          {renderTotals(yourTotals)}
         </div>
       </div>
 
       {/* Quick actions */}
       <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-        <div style={{ flex: 1 }}>
-          <Button variant="secondary" onClick={onOpenStats}>📊 Stats</Button>
-        </div>
-        <div style={{ flex: 1 }}>
-          <Button variant="secondary" onClick={onOpenManageUsers}>👥 Members</Button>
-        </div>
-        <div style={{ flex: 1 }}>
-          <Button variant="secondary" onClick={onOpenSettings}>⚙️ Settings</Button>
-        </div>
+        <QuickAction icon="📊" label="Stats" onClick={onOpenStats} />
+        <QuickAction icon="👥" label="Members" onClick={onOpenManageUsers} />
+        <QuickAction icon="⚙️" label="Settings" onClick={onOpenSettings} />
       </div>
 
       {!hasMainButton && (
@@ -161,7 +174,7 @@ export function GroupDetailScreen({
       )}
 
       {/* Your outstanding debts */}
-      <h2 style={sectionStyle}>Your Outstanding Debts</h2>
+      <SectionHeader>Your Outstanding Debts</SectionHeader>
       {youOwe.length === 0 && owedToYou.length === 0 ? (
         <p style={{ color: theme.hint }}>You're all settled up. 🎉</p>
       ) : (
@@ -205,7 +218,7 @@ export function GroupDetailScreen({
         ))}
 
       {/* Expense feed */}
-      <h2 style={sectionStyle}>History</h2>
+      <SectionHeader>History</SectionHeader>
       <input style={inputStyle} placeholder="Search expenses…" value={search} onChange={(e) => setSearch(e.target.value)} />
       <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
         <select
@@ -231,9 +244,11 @@ export function GroupDetailScreen({
       </div>
 
       {filtered.length === 0 ? (
-        <p style={{ color: theme.hint, marginTop: 12 }}>
-          {expenses.length === 0 ? 'No expenses yet.' : 'No expenses match your search.'}
-        </p>
+        expenses.length === 0 ? (
+          <EmptyState emoji="🧾" title="No expenses yet" hint="Tap “Add expense” to record your first one." />
+        ) : (
+          <EmptyState emoji="🔍" title="No matches" hint="Try a different search or clear the filters." />
+        )
       ) : (
         dayGroups.map((g) => (
           <div key={g.label}>
@@ -273,7 +288,7 @@ export function GroupDetailScreen({
       )}
 
       {/* Members (read-only; manage via the Members action) */}
-      <h2 style={sectionStyle}>Members</h2>
+      <SectionHeader>Members</SectionHeader>
       {detail.members.map((m) => (
         <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0' }}>
           <span>{m.firstName}</span>
@@ -287,7 +302,6 @@ export function GroupDetailScreen({
   );
 }
 
-const sectionStyle = { fontSize: 15, color: theme.hint, marginTop: 24, marginBottom: 8 } as const;
 const dayDividerStyle = { textAlign: 'center', fontSize: 13, color: theme.hint, margin: '14px 0 8px' } as const;
 const summaryCardStyle = { flex: 1, background: theme.secondaryBg, borderRadius: 12, padding: 12 } as const;
 const settleLinkStyle = { background: 'none', border: 'none', color: theme.link, cursor: 'pointer', fontSize: 15, padding: 0 } as const;

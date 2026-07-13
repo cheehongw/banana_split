@@ -1,0 +1,102 @@
+/* Interaction & motion polish. Inline styles (ui.tsx) can't express :active,
+ * :focus-visible, or @keyframes, so those live here. Everything keys off the
+ * same --tg-theme-* vars the app already uses, so light/dark still work. */
+
+:root {
+  --bs-radius: 12px;
+  --bs-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  margin: 0;
+}
+
+/* Buttons: subtle lift + press feedback. */
+.bs-button {
+  transition: transform 0.08s ease, opacity 0.15s ease, filter 0.15s ease;
+}
+.bs-button:not(:disabled):active {
+  transform: scale(0.97);
+  filter: brightness(0.95);
+}
+
+/* Cards: gentle press when tappable, soft entrance. */
+.bs-card {
+  transition: transform 0.08s ease, background 0.15s ease;
+  animation: bs-fade-in 0.2s ease both;
+}
+.bs-card--tappable {
+  cursor: pointer;
+}
+.bs-card--tappable:active {
+  transform: scale(0.985);
+}
+
+/* Inputs: focus ring using the theme's button color. */
+.bs-input,
+input,
+select,
+textarea {
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.bs-input:focus,
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--tg-theme-button-color, #2481cc);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tg-theme-button-color, #2481cc) 20%, transparent);
+}
+
+/* Skeleton shimmer for loading states. */
+.bs-skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--tg-theme-secondary-bg-color, #f1f1f4);
+  border-radius: 8px;
+}
+.bs-skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--tg-theme-text-color, #000) 6%, transparent),
+    transparent
+  );
+  animation: bs-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes bs-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes bs-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Respect reduced-motion preferences. */
+@media (prefers-reduced-motion: reduce) {
+  .bs-button,
+  .bs-card,
+  .bs-input,
+  .bs-skeleton::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
