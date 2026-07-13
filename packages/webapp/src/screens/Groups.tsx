@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
 import { markTutorialSeen, tutorialSeen } from '../lib/tutorial';
 import { useMainButton } from '../lib/useMainButton';
-import { Button, Card, Field, inputStyle, Screen, theme } from '../ui';
+import { Button, Card, EmptyState, Field, inputStyle, Screen, SectionHeader, SkeletonCard, theme } from '../ui';
 
 export function Groups({ onOpen }: { onOpen: (groupId: string) => void }) {
   const [groups, setGroups] = useState<Group[]>([]);
@@ -93,17 +93,45 @@ export function Groups({ onOpen }: { onOpen: (groupId: string) => void }) {
         </div>
       </Field>
 
-      <h2 style={{ fontSize: 15, color: theme.hint, marginTop: 20 }}>Your groups</h2>
+      <SectionHeader>Your groups</SectionHeader>
       {loading ? (
-        <p>Loading…</p>
+        <>
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
+        </>
       ) : groups.length === 0 ? (
-        <p style={{ color: theme.hint }}>No groups yet — create one above.</p>
+        <EmptyState
+          emoji="🍌"
+          title="No groups yet"
+          hint="Create one above for a trip or household to start splitting expenses."
+        />
       ) : (
         groups.map((g) => (
           <Card key={g.id} onClick={() => onOpen(g.id)}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <strong>{g.title}</strong>
-              <span style={{ color: theme.hint }}>{g.currency} ›</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div
+                style={{
+                  width: 40,
+                  height: 40,
+                  flexShrink: 0,
+                  borderRadius: 10,
+                  background: theme.bg,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 20,
+                }}
+              >
+                {g.avatar || '🍌'}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <strong style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {g.title}
+                </strong>
+                <span style={{ fontSize: 13, color: theme.hint }}>{g.currency}</span>
+              </div>
+              <span style={{ color: theme.hint, fontSize: 18 }}>›</span>
             </div>
           </Card>
         ))

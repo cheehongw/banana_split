@@ -12,7 +12,7 @@ import { api } from '../lib/api';
 import { groupByDay } from '../lib/dates';
 import { formatMoney } from '../lib/money';
 import { useMainButton } from '../lib/useMainButton';
-import { Button, Card, inputStyle, Screen, theme } from '../ui';
+import { Button, Card, EmptyState, inputStyle, Screen, SectionHeader, Skeleton, SkeletonCard, theme } from '../ui';
 
 export function GroupDetailScreen({
   groupId,
@@ -88,7 +88,18 @@ export function GroupDetailScreen({
   if (!detail) {
     return (
       <Screen title="Group" onBack={onBack}>
-        {error ? <p style={{ color: theme.destructive }}>{error}</p> : <p>Loading…</p>}
+        {error ? (
+          <p style={{ color: theme.destructive }}>{error}</p>
+        ) : (
+          <>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+              <Skeleton height={64} style={{ flex: 1, borderRadius: 12 }} />
+              <Skeleton height={64} style={{ flex: 1, borderRadius: 12 }} />
+            </div>
+            <SkeletonCard />
+            <SkeletonCard />
+          </>
+        )}
       </Screen>
     );
   }
@@ -161,7 +172,7 @@ export function GroupDetailScreen({
       )}
 
       {/* Your outstanding debts */}
-      <h2 style={sectionStyle}>Your Outstanding Debts</h2>
+      <SectionHeader>Your Outstanding Debts</SectionHeader>
       {youOwe.length === 0 && owedToYou.length === 0 ? (
         <p style={{ color: theme.hint }}>You're all settled up. 🎉</p>
       ) : (
@@ -205,7 +216,7 @@ export function GroupDetailScreen({
         ))}
 
       {/* Expense feed */}
-      <h2 style={sectionStyle}>History</h2>
+      <SectionHeader>History</SectionHeader>
       <input style={inputStyle} placeholder="Search expenses…" value={search} onChange={(e) => setSearch(e.target.value)} />
       <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
         <select
@@ -231,9 +242,11 @@ export function GroupDetailScreen({
       </div>
 
       {filtered.length === 0 ? (
-        <p style={{ color: theme.hint, marginTop: 12 }}>
-          {expenses.length === 0 ? 'No expenses yet.' : 'No expenses match your search.'}
-        </p>
+        expenses.length === 0 ? (
+          <EmptyState emoji="🧾" title="No expenses yet" hint="Tap “Add expense” to record your first one." />
+        ) : (
+          <EmptyState emoji="🔍" title="No matches" hint="Try a different search or clear the filters." />
+        )
       ) : (
         dayGroups.map((g) => (
           <div key={g.label}>
@@ -273,7 +286,7 @@ export function GroupDetailScreen({
       )}
 
       {/* Members (read-only; manage via the Members action) */}
-      <h2 style={sectionStyle}>Members</h2>
+      <SectionHeader>Members</SectionHeader>
       {detail.members.map((m) => (
         <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0' }}>
           <span>{m.firstName}</span>
@@ -287,7 +300,6 @@ export function GroupDetailScreen({
   );
 }
 
-const sectionStyle = { fontSize: 15, color: theme.hint, marginTop: 24, marginBottom: 8 } as const;
 const dayDividerStyle = { textAlign: 'center', fontSize: 13, color: theme.hint, margin: '14px 0 8px' } as const;
 const summaryCardStyle = { flex: 1, background: theme.secondaryBg, borderRadius: 12, padding: 12 } as const;
 const settleLinkStyle = { background: 'none', border: 'none', color: theme.link, cursor: 'pointer', fontSize: 15, padding: 0 } as const;
