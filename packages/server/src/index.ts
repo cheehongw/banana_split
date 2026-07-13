@@ -50,7 +50,7 @@ if (webappDist && existsSync(join(webappDist, 'index.html'))) {
 
 const port = Number(process.env.PORT ?? 3000);
 serve({ fetch: app.fetch, port }, (info) => {
-  console.log(`🍌 Banana Split server listening on :${info.port}`);
+  console.log(`🍈 Melon Splat server listening on :${info.port}`);
   const dev = devUser();
   if (dev) {
     console.warn(`⚠️  DEV AUTH BYPASS ON — unauthenticated requests act as user ${dev.id} (${dev.first_name}). Never set DEV_USER_ID in production.`);
