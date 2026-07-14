@@ -1,4 +1,4 @@
-import { CATEGORIES, DEFAULT_CATEGORY, resolveSplits, type GroupDetail, type SplitType } from '@banana-split/shared';
+import { CATEGORIES, currencyDecimals, DEFAULT_CATEGORY, resolveSplits, type Expense, type GroupDetail, type SplitType } from '@banana-split/shared';
 import { useMemo, useState } from 'react';
 import { api, type AddExpenseInput } from '../lib/api';
 import { COMMON_CURRENCIES, formatMoney, parseMoney } from '../lib/money';
@@ -7,19 +7,46 @@ import { Button, Field, inputStyle, Screen, theme } from '../ui';
 
 const SPLIT_TYPES: SplitType[] = ['equal', 'shares', 'exact'];
 
-export function AddExpense({ detail, onDone, onBack }: { detail: GroupDetail; onDone: () => void; onBack: () => void }) {
+/** Integer minor units → plain major-unit input string (no currency code), e.g. 5000/JPY → "5000". */
+function toAmountInput(minor: number, currency: string): string {
+  const d = currencyDecimals(currency);
+  return (minor / 10 ** d).toFixed(d);
+}
+
+export function AddExpense({
+  detail,
+  expense,
+  onDone,
+  onBack,
+}: {
+  detail: GroupDetail;
+  expense?: Expense; // when present, edit this expense instead of creating a new one
+  onDone: () => void;
+  onBack: () => void;
+}) {
   const { group, members } = detail;
-  const [description, setDescription] = useState('');
-  const [amount, setAmount] = useState('');
-  const [paidBy, setPaidBy] = useState<number>(members[0]?.id ?? 0);
-  const [splitType, setSplitType] = useState<SplitType>('equal');
-  const [category, setCategory] = useState<string>(DEFAULT_CATEGORY);
-  const [currency, setCurrency] = useState<string>(group.currency);
-  const [selected, setSelected] = useState<Set<number>>(new Set(members.map((m) => m.id)));
-  const [weights, setWeights] = useState<Record<number, string>>({});
-  const [exact, setExact] = useState<Record<number, string>>({});
+  const editing = !!expense;
+  const [description, setDescription] = useState(expense?.description ?? '');
+  const [amount, setAmount] = useState(expense ? toAmountInput(expense.amount, expense.currency) : '');
+  const [paidBy, setPaidBy] = useState<number>(expense?.paidBy ?? members[0]?.id ?? 0);
+  const [splitType, setSplitType] = useState<SplitType>(expense?.splitType ?? 'equal');
+  const [category, setCategory] = useState<string>(expense?.category ?? DEFAULT_CATEGORY);
+  const [currency, setCurrency] = useState<string>(expense?.currency ?? group.currency);
+  const [selected, setSelected] = useState<Set<number>>(
+    new Set(expense ? expense.splits.map((s) => s.userId) : members.map((m) => m.id)),
+  );
+  const [weights, setWeights] = useState<Record<number, string>>(() =>
+    expense
+      ? Object.fromEntries(expense.splits.filter((s) => s.shares != null).map((s) => [s.userId, String(s.shares)]))
+      : {},
+  );
+  const [exact, setExact] = useState<Record<number, string>>(() =>
+    expense ? Object.fromEntries(expense.splits.map((s) => [s.userId, toAmountInput(s.amount, expense.currency)])) : {},
+  );
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const cents = parseMoney(amount, currency);
   const participants = members.filter((m) => selected.has(m.id)).map((m) => m.id);
@@ -71,7 +98,11 @@ export function AddExpense({ detail, onDone, onBack }: { detail: GroupDetail; on
 
     setSaving(true);
     try {
-      await api.addExpense(body);
+      if (editing) {
+        await api.updateExpense(expense.id, body);
+      } else {
+        await api.addExpense(body);
+      }
       onDone();
     } catch (e) {
       setError(String(e));
@@ -80,11 +111,28 @@ export function AddExpense({ detail, onDone, onBack }: { detail: GroupDetail; on
     }
   }
 
+  async function remove() {
+    if (!expense || deleting) return;
+    if (!confirmDelete) {
+      setConfirmDelete(true);
+      return;
+    }
+    setError(null);
+    setDeleting(true);
+    try {
+      await api.deleteExpense(expense.id);
+      onDone();
+    } catch (e) {
+      setError(String(e));
+      setDeleting(false);
+    }
+  }
+
   // Native Telegram MainButton for the primary action; in-page button is the
   // browser fallback when there's no MainButton (returns false).
   const canSave = !saving && !!description.trim() && cents != null && cents > 0 && participants.length > 0 && !preview.error;
   const hasMainButton = useMainButton({
-    text: saving ? 'Saving…' : 'Save expense',
+    text: saving ? 'Saving…' : editing ? 'Save changes' : 'Save expense',
     visible: true,
     enabled: canSave,
     progress: saving,
@@ -92,7 +140,7 @@ export function AddExpense({ detail, onDone, onBack }: { detail: GroupDetail; on
   });
 
   return (
-    <Screen title="Add expense" onBack={onBack}>
+    <Screen title={editing ? 'Edit expense' : 'Add expense'} onBack={onBack}>
       {error && <p style={{ color: theme.destructive }}>{error}</p>}
 
       <Field label="Description">
@@ -210,8 +258,31 @@ export function AddExpense({ detail, onDone, onBack }: { detail: GroupDetail; on
       {!hasMainButton && (
         <div style={{ marginTop: 20 }}>
           <Button onClick={submit} disabled={!canSave}>
-            {saving ? 'Saving…' : 'Save expense'}
+            {saving ? 'Saving…' : editing ? 'Save changes' : 'Save expense'}
           </Button>
+        </div>
+      )}
+
+      {editing && (
+        <div style={{ marginTop: 12 }}>
+          <button
+            onClick={remove}
+            disabled={deleting}
+            style={{
+              width: '100%',
+              padding: '12px 16px',
+              fontSize: 16,
+              fontWeight: 600,
+              borderRadius: 10,
+              border: `1px solid ${theme.destructive}`,
+              background: 'transparent',
+              color: theme.destructive,
+              cursor: deleting ? 'default' : 'pointer',
+              opacity: deleting ? 0.5 : 1,
+            }}
+          >
+            {deleting ? 'Deleting…' : confirmDelete ? 'Tap again to delete' : '🗑️ Delete expense'}
+          </button>
         </div>
       )}
     </Screen>

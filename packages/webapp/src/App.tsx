@@ -1,4 +1,4 @@
-import type { GroupDetail } from '@banana-split/shared';
+import type { Expense, GroupDetail } from '@banana-split/shared';
 import { useEffect, useState } from 'react';
 import { api, startParam } from './lib/api';
 import { AddExpense } from './screens/AddExpense';
@@ -11,7 +11,7 @@ import { Stats } from './screens/Stats';
 type View =
   | { name: 'groups' }
   | { name: 'group'; groupId: string }
-  | { name: 'addExpense'; detail: GroupDetail }
+  | { name: 'addExpense'; detail: GroupDetail; expense?: Expense }
   | { name: 'stats'; groupId: string }
   | { name: 'settings'; groupId: string }
   | { name: 'manageUsers'; groupId: string };
@@ -39,6 +39,7 @@ export function App() {
           groupId={view.groupId}
           onBack={() => setView({ name: 'groups' })}
           onAddExpense={(detail) => setView({ name: 'addExpense', detail })}
+          onEditExpense={(detail, expense) => setView({ name: 'addExpense', detail, expense })}
           onOpenStats={() => setView({ name: 'stats', groupId: view.groupId })}
           onOpenSettings={() => setView({ name: 'settings', groupId: view.groupId })}
           onOpenManageUsers={() => setView({ name: 'manageUsers', groupId: view.groupId })}
@@ -48,6 +49,7 @@ export function App() {
       return (
         <AddExpense
           detail={view.detail}
+          expense={view.expense}
           onBack={() => setView({ name: 'group', groupId: view.detail.group.id })}
           onDone={() => setView({ name: 'group', groupId: view.detail.group.id })}
         />
