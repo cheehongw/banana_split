@@ -14,7 +14,17 @@ export const theme = {
   destructive: 'var(--tg-theme-destructive-text-color, #d7263d)',
 };
 
-export function Screen({ title, onBack, children }: { title: string; onBack?: () => void; children: ReactNode }) {
+export function Screen({
+  title,
+  onBack,
+  action,
+  children,
+}: {
+  title: string;
+  onBack?: () => void;
+  action?: ReactNode;
+  children: ReactNode;
+}) {
   // Use Telegram's native BackButton when available; fall back to an in-page link.
   const hasBackButton = useBackButton(onBack ?? null);
   return (
@@ -34,7 +44,8 @@ export function Screen({ title, onBack, children }: { title: string; onBack?: ()
             ‹ Back
           </button>
         )}
-        <h1 style={{ fontSize: 22, margin: 0 }}>{title}</h1>
+        <h1 style={{ fontSize: 22, margin: 0, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{title}</h1>
+        {action && <div style={{ marginLeft: 'auto', flexShrink: 0, paddingLeft: 8 }}>{action}</div>}
       </header>
       {children}
     </main>

@@ -38,6 +38,7 @@ export function App() {
         <GroupDetailScreen
           groupId={view.groupId}
           onBack={() => setView({ name: 'groups' })}
+          onOpenGroups={() => setView({ name: 'groups' })}
           onAddExpense={(detail) => setView({ name: 'addExpense', detail })}
           onOpenStats={() => setView({ name: 'stats', groupId: view.groupId })}
           onOpenSettings={() => setView({ name: 'settings', groupId: view.groupId })}

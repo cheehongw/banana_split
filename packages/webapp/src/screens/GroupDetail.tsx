@@ -17,6 +17,7 @@ import { Button, Card, EmptyState, inputStyle, QuickAction, Screen, SectionHeade
 export function GroupDetailScreen({
   groupId,
   onBack,
+  onOpenGroups,
   onAddExpense,
   onOpenStats,
   onOpenSettings,
@@ -24,6 +25,7 @@ export function GroupDetailScreen({
 }: {
   groupId: string;
   onBack: () => void;
+  onOpenGroups: () => void;
   onAddExpense: (detail: GroupDetail) => void;
   onOpenStats: () => void;
   onOpenSettings: () => void;
@@ -85,9 +87,20 @@ export function GroupDetailScreen({
     onClick: () => detail && onAddExpense(detail),
   });
 
+  // Escape hatch back to the groups list (where "Create group" lives) — matters
+  // when the app was opened straight into this group via a chat deep link.
+  const myGroupsAction = (
+    <button
+      onClick={onOpenGroups}
+      style={{ background: 'none', border: 'none', color: theme.link, fontSize: 15, cursor: 'pointer', padding: 0 }}
+    >
+      🍈 My groups
+    </button>
+  );
+
   if (!detail) {
     return (
-      <Screen title="Group" onBack={onBack}>
+      <Screen title="Group" onBack={onBack} action={myGroupsAction}>
         {error ? (
           <p style={{ color: theme.destructive }}>{error}</p>
         ) : (
@@ -141,7 +154,7 @@ export function GroupDetailScreen({
   const dayGroups = groupByDay(filtered, (e) => e.createdAt);
 
   return (
-    <Screen title={title} onBack={onBack}>
+    <Screen title={title} onBack={onBack} action={myGroupsAction}>
       {error && <p style={{ color: theme.destructive }}>{error}</p>}
 
       {/* Summary cards */}
