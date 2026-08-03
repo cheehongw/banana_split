@@ -51,6 +51,16 @@ export const api = {
     }),
   removeMember: (groupId: string, userId: number) =>
     request<{ ok: true }>(`/groups/${encodeURIComponent(groupId)}/members/${userId}`, { method: 'DELETE' }),
+  addPlaceholder: (groupId: string, name: string) =>
+    request<User>(`/groups/${encodeURIComponent(groupId)}/placeholders`, {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    }),
+  claimPlaceholder: (groupId: string, placeholderId: number) =>
+    request<{ ok: true; userId: number }>(`/groups/${encodeURIComponent(groupId)}/claim`, {
+      method: 'POST',
+      body: JSON.stringify({ placeholderId }),
+    }),
   joinGroup: (groupId: string) =>
     request<{ ok: true }>(`/groups/${encodeURIComponent(groupId)}/join`, { method: 'POST' }),
 
@@ -58,6 +68,10 @@ export const api = {
     request<Expense[]>(`/expenses?groupId=${encodeURIComponent(groupId)}`),
   addExpense: (body: AddExpenseInput) =>
     request<{ id: string }>('/expenses', { method: 'POST', body: JSON.stringify(body) }),
+  updateExpense: (id: string, body: AddExpenseInput) =>
+    request<{ id: string }>(`/expenses/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  deleteExpense: (id: string) =>
+    request<{ ok: true }>(`/expenses/${encodeURIComponent(id)}`, { method: 'DELETE' }),
 
   balances: (groupId: string) =>
     request<{ balances: Balance[]; suggestions: SettlementSuggestion[] }>(

@@ -1,5 +1,5 @@
 import { categoryLabel, currencyDecimals } from '@banana-split/shared';
-import { and, eq, inArray, or } from 'drizzle-orm';
+import { and, eq, inArray, or, sql } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { randomUUID } from 'node:crypto';
 import { assertMember } from '../authz';
@@ -67,6 +67,7 @@ groupsRoute.get('/:id', (c) => {
       lastName: r.user.lastName ?? undefined,
       username: r.user.username ?? undefined,
       photoUrl: r.user.photoUrl ?? undefined,
+      isPlaceholder: r.user.id < 0,
     }));
 
   return c.json({ group, members });
@@ -121,6 +122,127 @@ groupsRoute.post('/:id/join', (c) => {
 
   return c.json({ ok: true }, 201);
 });
+
+/**
+ * Add a PLACEHOLDER member — someone not on Telegram (e.g. a friend who hasn't
+ * joined yet). Placeholders get a negative id (real Telegram ids are positive),
+ * so `id < 0` unambiguously marks them with no schema change. They can pay for
+ * and share expenses like anyone else, and can later be "claimed" (see below).
+ */
+groupsRoute.post('/:id/placeholders', async (c) => {
+  const id = c.req.param('id');
+  const body = await c.req.json<{ name?: string }>();
+  const name = body.name?.trim();
+  if (!name) return c.json({ error: 'name required' }, 400);
+
+  const group = db.select().from(schema.groups).where(eq(schema.groups.id, id)).get();
+  if (!group) return c.json({ error: 'group not found' }, 404);
+  assertMember(id, c.get('user').id);
+
+  // Allocate a fresh negative id, below any existing one, to avoid collisions.
+  const row = db.select({ min: sql<number>`min(${schema.users.id})` }).from(schema.users).get();
+  const placeholderId = Math.min(0, row?.min ?? 0) - 1;
+
+  db.insert(schema.users).values({ id: placeholderId, firstName: name }).run();
+  db.insert(schema.groupMembers).values({ groupId: id, userId: placeholderId }).run();
+
+  return c.json({ id: placeholderId, firstName: name, isPlaceholder: true }, 201);
+});
+
+/**
+ * Claim (take over) a placeholder: re-attribute all of the placeholder's
+ * expenses, splits, and settlements to the CALLER (whose id comes from the
+ * validated initData — never the client), then delete the placeholder. If the
+ * caller already had activity, the two combine (splits on the same expense are
+ * summed). Destructive + irreversible by design.
+ */
+groupsRoute.post('/:id/claim', async (c) => {
+  const id = c.req.param('id');
+  const body = await c.req.json<{ placeholderId?: number }>();
+  const placeholderId = body.placeholderId;
+  const user = c.get('user');
+
+  const group = db.select().from(schema.groups).where(eq(schema.groups.id, id)).get();
+  if (!group) return c.json({ error: 'group not found' }, 404);
+  assertMember(id, user.id); // caller must already be in the group (deep link auto-joins)
+
+  if (typeof placeholderId !== 'number' || placeholderId >= 0) {
+    return c.json({ error: 'not a placeholder' }, 400);
+  }
+  if (placeholderId === user.id) return c.json({ error: 'cannot claim yourself' }, 400);
+  const inGroup = db
+    .select()
+    .from(schema.groupMembers)
+    .where(and(eq(schema.groupMembers.groupId, id), eq(schema.groupMembers.userId, placeholderId)))
+    .get();
+  if (!inGroup) return c.json({ error: 'placeholder not in this group' }, 404);
+
+  // Make sure the caller's real user row exists before we point rows at it.
+  db.insert(schema.users)
+    .values({
+      id: user.id,
+      firstName: user.first_name,
+      lastName: user.last_name,
+      username: user.username,
+      photoUrl: user.photo_url,
+    })
+    .onConflictDoNothing()
+    .run();
+
+  mergeUser(placeholderId, user.id);
+  return c.json({ ok: true, userId: user.id });
+});
+
+/**
+ * Merge one user's ledger rows into another, in a single transaction. Used by
+ * claim (placeholder → real user). Handles the (expenseId, userId) and
+ * (groupId, userId) composite-PK collisions that arise if `toId` already has
+ * rows on the same expense/group.
+ */
+function mergeUser(fromId: number, toId: number): void {
+  db.transaction((tx) => {
+    tx.update(schema.expenses).set({ paidBy: toId }).where(eq(schema.expenses.paidBy, fromId)).run();
+    tx.update(schema.expenses).set({ createdBy: toId }).where(eq(schema.expenses.createdBy, fromId)).run();
+
+    // expense_splits: (expenseId, userId) is the PK — merge if `toId` is already
+    // a participant on the same expense, else just repoint.
+    const fromSplits = tx.select().from(schema.expenseSplits).where(eq(schema.expenseSplits.userId, fromId)).all();
+    for (const s of fromSplits) {
+      const existing = tx
+        .select()
+        .from(schema.expenseSplits)
+        .where(and(eq(schema.expenseSplits.expenseId, s.expenseId), eq(schema.expenseSplits.userId, toId)))
+        .get();
+      if (existing) {
+        const shares = (existing.shares ?? 0) + (s.shares ?? 0);
+        tx.update(schema.expenseSplits)
+          .set({ amount: existing.amount + s.amount, shares: shares || null })
+          .where(and(eq(schema.expenseSplits.expenseId, s.expenseId), eq(schema.expenseSplits.userId, toId)))
+          .run();
+        tx.delete(schema.expenseSplits)
+          .where(and(eq(schema.expenseSplits.expenseId, s.expenseId), eq(schema.expenseSplits.userId, fromId)))
+          .run();
+      } else {
+        tx.update(schema.expenseSplits)
+          .set({ userId: toId })
+          .where(and(eq(schema.expenseSplits.expenseId, s.expenseId), eq(schema.expenseSplits.userId, fromId)))
+          .run();
+      }
+    }
+
+    tx.update(schema.settlements).set({ fromUser: toId }).where(eq(schema.settlements.fromUser, fromId)).run();
+    tx.update(schema.settlements).set({ toUser: toId }).where(eq(schema.settlements.toUser, fromId)).run();
+
+    // group_members: (groupId, userId) is the PK — ensure `toId` membership, drop `fromId`.
+    const memberships = tx.select().from(schema.groupMembers).where(eq(schema.groupMembers.userId, fromId)).all();
+    for (const m of memberships) {
+      tx.insert(schema.groupMembers).values({ groupId: m.groupId, userId: toId }).onConflictDoNothing().run();
+    }
+    tx.delete(schema.groupMembers).where(eq(schema.groupMembers.userId, fromId)).run();
+
+    tx.delete(schema.users).where(eq(schema.users.id, fromId)).run();
+  });
+}
 
 // TODO: DELETE /:id/members/:userId
 /** Export all of a group's expenses and settlements as a CSV download. */

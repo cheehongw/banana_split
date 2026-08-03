@@ -19,6 +19,7 @@ export function GroupDetailScreen({
   onBack,
   onOpenGroups,
   onAddExpense,
+  onEditExpense,
   onOpenStats,
   onOpenSettings,
   onOpenManageUsers,
@@ -27,6 +28,7 @@ export function GroupDetailScreen({
   onBack: () => void;
   onOpenGroups: () => void;
   onAddExpense: (detail: GroupDetail) => void;
+  onEditExpense: (detail: GroupDetail, expense: Expense) => void;
   onOpenStats: () => void;
   onOpenSettings: () => void;
   onOpenManageUsers: () => void;
@@ -291,6 +293,17 @@ export function GroupDetailScreen({
                           <span style={{ color: theme.hint }}>{formatMoney(s.amount, e.currency)}</span>
                         </div>
                       ))}
+                      <div style={{ marginTop: 8, textAlign: 'right' }}>
+                        <button
+                          onClick={(ev) => {
+                            ev.stopPropagation();
+                            onEditExpense(detail, e);
+                          }}
+                          style={{ background: 'none', border: 'none', color: theme.link, cursor: 'pointer', fontSize: 14, padding: 0 }}
+                        >
+                          ✏️ Edit
+                        </button>
+                      </div>
                     </div>
                   )}
                 </Card>

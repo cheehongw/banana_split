@@ -102,3 +102,87 @@ expensesRoute.post('/', async (c) => {
 
   return c.json({ id }, 201);
 });
+
+/** Edit an expense: re-resolve the split and replace the row + its splits. */
+expensesRoute.patch('/:id', async (c) => {
+  const user = c.get('user');
+  const id = c.req.param('id');
+  const body = await c.req.json<CreateExpenseBody>();
+
+  const existing = db.select().from(schema.expenses).where(eq(schema.expenses.id, id)).get();
+  if (!existing) return c.json({ error: 'expense not found' }, 404);
+  if (!body.description?.trim() || !body.amount || !body.participants?.length) {
+    return c.json({ error: 'missing required fields' }, 400);
+  }
+
+  const groupId = existing.groupId; // an expense never moves groups
+  const group = db.select().from(schema.groups).where(eq(schema.groups.id, groupId)).get();
+  if (!group) return c.json({ error: 'group not found' }, 404);
+  assertMember(groupId, user.id);
+  assertAllMembers(groupId, [body.paidBy, ...body.participants]);
+
+  let splits;
+  try {
+    splits = resolveSplits(body.splitType, body.amount, body.participants, {
+      shares: body.shares,
+      exact: body.exact,
+    });
+  } catch (err) {
+    return c.json({ error: (err as Error).message }, 400);
+  }
+
+  const currency = body.currency && /^[A-Za-z]{3}$/.test(body.currency) ? body.currency.toUpperCase() : existing.currency;
+
+  db.transaction((tx) => {
+    tx.update(schema.expenses)
+      .set({
+        description: body.description.trim(),
+        amount: body.amount,
+        currency,
+        paidBy: body.paidBy,
+        splitType: body.splitType,
+        category: body.category && isKnownCategory(body.category) ? body.category : null,
+      })
+      .where(eq(schema.expenses.id, id))
+      .run(); // createdBy / createdAt are intentionally left untouched
+    tx.delete(schema.expenseSplits).where(eq(schema.expenseSplits.expenseId, id)).run();
+    tx.insert(schema.expenseSplits)
+      .values(splits.map((s) => ({ expenseId: id, userId: s.userId, amount: s.amount, shares: s.shares ?? null })))
+      .run();
+  });
+
+  if (group.telegramChatId && group.notificationsEnabled) {
+    await notifyGroup(
+      group.telegramChatId,
+      `✏️ Edited expense: ${body.description.trim()} — ${formatMoney(body.amount, currency)}`,
+    );
+  }
+
+  return c.json({ id });
+});
+
+/** Delete an expense and its splits. */
+expensesRoute.delete('/:id', async (c) => {
+  const user = c.get('user');
+  const id = c.req.param('id');
+
+  const existing = db.select().from(schema.expenses).where(eq(schema.expenses.id, id)).get();
+  if (!existing) return c.json({ error: 'expense not found' }, 404);
+  assertMember(existing.groupId, user.id);
+
+  const group = db.select().from(schema.groups).where(eq(schema.groups.id, existing.groupId)).get();
+
+  db.transaction((tx) => {
+    tx.delete(schema.expenseSplits).where(eq(schema.expenseSplits.expenseId, id)).run();
+    tx.delete(schema.expenses).where(eq(schema.expenses.id, id)).run();
+  });
+
+  if (group?.telegramChatId && group.notificationsEnabled) {
+    await notifyGroup(
+      group.telegramChatId,
+      `🗑️ Removed expense: ${existing.description} — ${formatMoney(existing.amount, existing.currency)}`,
+    );
+  }
+
+  return c.json({ ok: true });
+});

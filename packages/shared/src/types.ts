@@ -6,11 +6,12 @@
 export type SplitType = 'equal' | 'shares' | 'exact';
 
 export interface User {
-  id: number; // Telegram user id
+  id: number; // Telegram user id; NEGATIVE ids are non-Telegram "placeholder" members
   firstName: string;
   lastName?: string;
   username?: string;
   photoUrl?: string;
+  isPlaceholder?: boolean; // true when this is a placeholder (id < 0), not a real Telegram user
 }
 
 export interface Group {
