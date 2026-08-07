@@ -9,8 +9,11 @@ import * as schema from './schema';
 // launched from the repo root (drizzle-kit) or packages/server (npm -w).
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..');
 const raw = process.env.DATABASE_URL ?? 'data/banana-split.sqlite';
-const dbPath = isAbsolute(raw) ? raw : resolve(repoRoot, raw);
-mkdirSync(dirname(dbPath), { recursive: true });
+// ':memory:' is a better-sqlite3 sentinel for an in-memory DB (used by tests) —
+// pass it through untouched; otherwise resolve relative paths against the repo root.
+const inMemory = raw === ':memory:';
+const dbPath = inMemory ? raw : isAbsolute(raw) ? raw : resolve(repoRoot, raw);
+if (!inMemory) mkdirSync(dirname(dbPath), { recursive: true });
 
 const sqlite = new Database(dbPath);
 sqlite.pragma('journal_mode = WAL');

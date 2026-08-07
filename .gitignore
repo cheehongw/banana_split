@@ -20,3 +20,6 @@ data/
 *.db
 
 .DS_Store
+
+# stray in-memory sqlite artifacts (should never appear now)
+:memory:*

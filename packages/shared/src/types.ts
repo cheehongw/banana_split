@@ -3,7 +3,7 @@
 // MONEY: every amount is an integer in MINOR UNITS (e.g. cents). Never floats.
 // This avoids rounding drift when splitting and summing balances.
 
-export type SplitType = 'equal' | 'shares' | 'exact';
+export type SplitType = 'equal' | 'shares' | 'exact' | 'itemized';
 
 export interface User {
   id: number; // Telegram user id; NEGATIVE ids are non-Telegram "placeholder" members
@@ -54,8 +54,34 @@ export interface Expense {
   splitType: SplitType;
   category?: string | null; // category id (see categories.ts); null = uncategorized
   splits: ExpenseSplit[];
+  /** Present only when splitType === 'itemized': the receipt lines + who claimed each. */
+  items?: ExpenseItem[];
   createdBy: number;
   createdAt: number;
+}
+
+/** A single receipt line on an itemized expense. */
+export interface ExpenseItem {
+  id: string;
+  description: string;
+  amount: number; // minor units, in the expense's currency
+  /** 'item' lines are claimable; tax/tip/discount are allocated proportionally. */
+  kind: 'item' | 'tax' | 'tip' | 'discount';
+  /** User ids sharing this item (empty ⇒ shared by all participants). Only meaningful for 'item'. */
+  claimants: number[];
+}
+
+/**
+ * A receipt parsed from an image — the technology-agnostic contract between the
+ * webapp and whatever backend parser produced it (OCR / LLM / cloud API).
+ * Amounts are integer minor units in `currency` (or the group currency if absent).
+ */
+export interface ParsedReceipt {
+  currency?: string;
+  items: { description: string; amount: number }[];
+  tax?: number;
+  tip?: number;
+  discount?: number;
 }
 
 export interface Settlement {
