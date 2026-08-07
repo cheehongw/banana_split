@@ -72,10 +72,24 @@ describe('resolveSplits (dispatch)', () => {
     expect(sum(resolveSplits('equal', 1000, [1, 2, 3]))).toBe(1000);
   });
 
-  it('rejects non-positive or non-integer totals', () => {
-    expect(() => resolveSplits('equal', 0, [1])).toThrow(/positive integer/);
-    expect(() => resolveSplits('equal', -1000, [1, 2])).toThrow(/positive integer/);
-    expect(() => resolveSplits('equal', 10.5, [1, 2])).toThrow(/positive integer/);
+  it('rejects zero or non-integer totals', () => {
+    expect(() => resolveSplits('equal', 0, [1])).toThrow(/non-zero integer/);
+    expect(() => resolveSplits('equal', 10.5, [1, 2])).toThrow(/non-zero integer/);
+  });
+
+  it('allows negative totals (refunds) and still sums exactly', () => {
+    // Equal refund: -1000 across 3 → -334/-333/-333, sums to -1000.
+    const equal = resolveSplits('equal', -1000, [1, 2, 3]);
+    expect(sum(equal)).toBe(-1000);
+    expect(equal.every((s) => s.amount <= 0)).toBe(true);
+
+    // Shares refund: leftover cent still distributed, sign preserved.
+    const shares = resolveSplits('shares', -1000, [1, 2, 3], { shares: { 1: 1, 2: 1, 3: 1 } });
+    expect(sum(shares)).toBe(-1000);
+
+    // Exact refund: negative amounts that sum to the negative total.
+    const exact = resolveSplits('exact', -1000, [1, 2], { exact: { 1: -600, 2: -400 } });
+    expect(sum(exact)).toBe(-1000);
   });
 
   it('rejects shares/exact maps that reference a non-participant', () => {
