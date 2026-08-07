@@ -1,4 +1,4 @@
-import type { Balance, Expense, Group, GroupDetail, SettlementSuggestion, User } from '@banana-split/shared';
+import type { Balance, Expense, Group, GroupDetail, SettlementSuggestion, SplitType, User } from '@banana-split/shared';
 
 // Vite proxies /api to the Hono server in dev; in prod both are served together.
 const BASE = import.meta.env.VITE_API_URL ?? '';
@@ -24,14 +24,19 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 export interface AddExpenseInput {
   groupId: string;
   description: string;
-  amount: number; // minor units
+  amount: number; // minor units (derived server-side for itemized)
   paidBy: number;
-  splitType: 'equal' | 'shares' | 'exact';
+  splitType: SplitType;
   participants: number[];
   category?: string;
   currency?: string;
   shares?: Record<number, number>;
   exact?: Record<number, number>;
+  // itemized only:
+  items?: { description: string; amount: number; claimants?: number[] }[];
+  tax?: number;
+  tip?: number;
+  discount?: number;
 }
 
 export const api = {

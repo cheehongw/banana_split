@@ -355,6 +355,27 @@ export function GroupDetailScreen({
                       <div style={{ fontSize: 13, color: theme.hint, marginBottom: 4 }}>
                         {categoryLabel(e.category)} · split {e.splitType}
                       </div>
+                      {e.items && e.items.length > 0 && (
+                        <div style={{ marginBottom: 8 }}>
+                          {e.items.map((it) => (
+                            <div key={it.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0' }}>
+                              <span style={{ fontSize: 13 }}>
+                                {it.kind === 'item' ? it.description : it.description}
+                                {it.kind === 'item' && (
+                                  <span style={{ color: theme.hint }}>
+                                    {' · '}
+                                    {it.claimants.length === 0 ? 'everyone' : it.claimants.map(nameOf).join(', ')}
+                                  </span>
+                                )}
+                              </span>
+                              <span style={{ fontSize: 13, color: theme.hint }}>{formatMoney(it.amount, e.currency)}</span>
+                            </div>
+                          ))}
+                          <div style={{ borderTop: `1px solid ${theme.secondaryBg}`, marginTop: 4, paddingTop: 4, fontSize: 12, color: theme.hint }}>
+                            Owed per person:
+                          </div>
+                        </div>
+                      )}
                       {e.splits.map((s) => (
                         <div key={s.userId} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
                           <span>{nameOf(s.userId)}</span>

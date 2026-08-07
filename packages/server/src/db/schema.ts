@@ -45,7 +45,7 @@ export const expenses = sqliteTable('expenses', {
   paidBy: integer('paid_by')
     .notNull()
     .references(() => users.id),
-  splitType: text('split_type', { enum: ['equal', 'shares', 'exact'] }).notNull(),
+  splitType: text('split_type', { enum: ['equal', 'shares', 'exact', 'itemized'] }).notNull(),
   category: text('category'), // optional category id (see @banana-split/shared categories)
   createdBy: integer('created_by')
     .notNull()
@@ -83,3 +83,31 @@ export const settlements = sqliteTable('settlements', {
   currency: text('currency').notNull().default('USD'),
   createdAt: integer('created_at').notNull().default(sql`(unixepoch())`),
 });
+
+// Receipt lines for an itemized expense (splitType === 'itemized'). 'item' rows
+// are claimable; tax/tip/discount rows are allocated proportionally. The compiled
+// per-user amounts still live in expense_splits, so balance math is unaffected.
+export const expenseItems = sqliteTable('expense_items', {
+  id: text('id').primaryKey(),
+  expenseId: text('expense_id')
+    .notNull()
+    .references(() => expenses.id),
+  description: text('description').notNull(),
+  amount: integer('amount').notNull(), // minor units, in the expense's currency
+  kind: text('kind', { enum: ['item', 'tax', 'tip', 'discount'] }).notNull().default('item'),
+  sortOrder: integer('sort_order').notNull().default(0),
+});
+
+// Who claimed each item. Composite PK; an item with no rows is shared by all participants.
+export const expenseItemClaims = sqliteTable(
+  'expense_item_claims',
+  {
+    itemId: text('item_id')
+      .notNull()
+      .references(() => expenseItems.id),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id),
+  },
+  (t) => ({ pk: primaryKey({ columns: [t.itemId, t.userId] }) }),
+);
