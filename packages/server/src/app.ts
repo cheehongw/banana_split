@@ -3,6 +3,7 @@ import { cors } from 'hono/cors';
 import { authMiddleware } from './auth';
 import { expensesRoute } from './routes/expenses';
 import { groupsRoute } from './routes/groups';
+import { receiptsRoute } from './routes/receipts';
 import { settlementsRoute } from './routes/settlements';
 
 /**
@@ -31,6 +32,7 @@ export function createApp(): Hono {
   api.route('/groups', groupsRoute);
   api.route('/expenses', expensesRoute);
   api.route('/settlements', settlementsRoute);
+  api.route('/receipts', receiptsRoute);
   app.route('/api', api);
 
   return app;

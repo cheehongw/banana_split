@@ -86,6 +86,7 @@ export function AddExpense({
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [scanning, setScanning] = useState(false);
 
   const isItemized = splitType === 'itemized';
   const cents = parseMoney(amount, currency);
@@ -237,6 +238,28 @@ export function AddExpense({
     }
   }
 
+  // Scan a receipt image → pre-fill the itemized rows. The parser is pluggable
+  // server-side (OCR/LLM/API); a 501 means none is configured on this server.
+  async function scanReceipt(file: File) {
+    setError(null);
+    setScanning(true);
+    try {
+      const r = await api.parseReceipt(file, currency);
+      const cur = r.currency ?? currency;
+      if (r.currency) setCurrency(r.currency);
+      if (r.items.length > 0) {
+        setItems(r.items.map((it) => ({ description: it.description, amount: toAmountInput(it.amount, cur), claimants: new Set(participants) })));
+      }
+      if (r.tax != null) setTax(toAmountInput(r.tax, cur));
+      if (r.tip != null) setTip(toAmountInput(r.tip, cur));
+      if (r.discount != null) setDiscount(toAmountInput(r.discount, cur));
+    } catch (e) {
+      setError(String(e).includes('501') ? 'Receipt scanning isn’t set up on this server yet — add items manually.' : String(e));
+    } finally {
+      setScanning(false);
+    }
+  }
+
   const canSave =
     !saving &&
     !!description.trim() &&
@@ -382,6 +405,36 @@ export function AddExpense({
       {/* Itemized editor: items + per-item claimants + tax/tip/discount. */}
       {isItemized && (
         <>
+          <label
+            style={{
+              display: 'block',
+              textAlign: 'center',
+              marginTop: 16,
+              padding: '12px 16px',
+              fontSize: 16,
+              fontWeight: 600,
+              borderRadius: 10,
+              border: `1px solid ${theme.hint}`,
+              color: theme.text,
+              cursor: scanning ? 'default' : 'pointer',
+              opacity: scanning ? 0.6 : 1,
+            }}
+          >
+            {scanning ? 'Scanning…' : '📷 Scan receipt'}
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              disabled={scanning}
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) void scanReceipt(f);
+                e.target.value = '';
+              }}
+            />
+          </label>
+
           <h2 style={{ fontSize: 15, color: theme.hint, marginTop: 20 }}>Items</h2>
           {items.map((it, idx) => (
             <div key={idx} style={{ background: theme.secondaryBg, borderRadius: 12, padding: 12, marginBottom: 10 }}>

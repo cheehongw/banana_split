@@ -1,4 +1,4 @@
-import type { Balance, Expense, Group, GroupDetail, SettlementSuggestion, SplitType, User } from '@banana-split/shared';
+import type { Balance, Expense, Group, GroupDetail, ParsedReceipt, SettlementSuggestion, SplitType, User } from '@banana-split/shared';
 
 // Vite proxies /api to the Hono server in dev; in prod both are served together.
 const BASE = import.meta.env.VITE_API_URL ?? '';
@@ -77,6 +77,21 @@ export const api = {
     request<{ id: string }>(`/expenses/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(body) }),
   deleteExpense: (id: string) =>
     request<{ ok: true }>(`/expenses/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+
+  /** Parse a receipt image into line items to pre-fill an itemized expense.
+   *  Multipart upload, so it does its own fetch (browser sets the boundary). */
+  parseReceipt: async (image: File, currency?: string): Promise<ParsedReceipt> => {
+    const form = new FormData();
+    form.append('image', image);
+    if (currency) form.append('currency', currency);
+    const res = await fetch(`${BASE}/api/receipts/parse`, {
+      method: 'POST',
+      headers: { 'X-Telegram-Init-Data': initData() }, // no Content-Type — the browser sets the multipart boundary
+      body: form,
+    });
+    if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
+    return res.json() as Promise<ParsedReceipt>;
+  },
 
   balances: (groupId: string) =>
     request<{ balances: Balance[]; suggestions: SettlementSuggestion[] }>(
