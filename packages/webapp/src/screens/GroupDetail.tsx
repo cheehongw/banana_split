@@ -41,6 +41,8 @@ export function GroupDetailScreen({
   const [busy, setBusy] = useState(false);
 
   const [showAllDebts, setShowAllDebts] = useState(false);
+  const [confirmClaimId, setConfirmClaimId] = useState<number | null>(null);
+  const [claimDismissed, setClaimDismissed] = useState(false);
   const [search, setSearch] = useState('');
   const [filterPayer, setFilterPayer] = useState<number | 'all'>('all');
   const [filterCategory, setFilterCategory] = useState<string>('all');
@@ -88,6 +90,27 @@ export function GroupDetailScreen({
     visible: !!detail,
     onClick: () => detail && onAddExpense(detail),
   });
+
+  // Take over a placeholder: its history merges into you, then it's deleted.
+  // Irreversible, so require a confirming second tap (same as Manage Users).
+  async function claim(userId: number) {
+    if (busy) return;
+    if (confirmClaimId !== userId) {
+      setConfirmClaimId(userId);
+      return;
+    }
+    setError(null);
+    setBusy(true);
+    try {
+      await api.claimPlaceholder(groupId, userId);
+      setConfirmClaimId(null);
+      await load();
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   // Escape hatch back to the groups list (where "Create group" lives) — matters
   // when the app was opened straight into this group via a chat deep link.
@@ -145,6 +168,18 @@ export function GroupDetailScreen({
   const youOwe = me ? suggestions.filter((s) => s.fromUser === me.id) : [];
   const owedToYou = me ? suggestions.filter((s) => s.toUser === me.id) : [];
 
+  // Claim prompt: after the deep link drops a real user into a group, they may
+  // have been tracked as a placeholder. Offer to take it over — but only for a
+  // fresh member with no activity of their own yet, so established members
+  // aren't nagged. Claiming merges the placeholder's history into them.
+  const placeholders = detail.members.filter((m) => m.isPlaceholder);
+  const iAmInvolved =
+    !!me &&
+    (expenses.some((e) => e.paidBy === me.id || e.splits.some((s) => s.userId === me.id)) ||
+      suggestions.some((s) => s.fromUser === me.id || s.toUser === me.id));
+  const showClaimPrompt = !!me && !claimDismissed && placeholders.length > 0 && !iAmInvolved;
+
+
   // Feed.
   const query = search.trim().toLowerCase();
   const filtered = expenses.filter(
@@ -158,6 +193,36 @@ export function GroupDetailScreen({
   return (
     <Screen title={title} onBack={onBack} action={myGroupsAction}>
       {error && <p style={{ color: theme.destructive }}>{error}</p>}
+
+      {/* Claim-your-placeholder prompt for a fresh joiner */}
+      {showClaimPrompt && (
+        <Card>
+          <div style={{ fontWeight: 600, marginBottom: 4 }}>👋 New here?</div>
+          <p style={{ fontSize: 13, color: theme.hint, margin: '0 0 10px' }}>
+            If one of these is you, tap “This is me” to take it over — you'll inherit all its expenses and balances.
+          </p>
+          {placeholders.map((m) => (
+            <div
+              key={m.id}
+              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0' }}
+            >
+              <span>{m.firstName}</span>
+              <button onClick={() => claim(m.id)} disabled={busy} style={settleLinkStyle}>
+                {confirmClaimId === m.id ? 'Tap to confirm' : 'This is me'}
+              </button>
+            </div>
+          ))}
+          <button
+            onClick={() => {
+              setClaimDismissed(true);
+              setConfirmClaimId(null);
+            }}
+            style={{ ...settleLinkStyle, color: theme.hint, marginTop: 8 }}
+          >
+            None of these are me
+          </button>
+        </Card>
+      )}
 
       {/* Summary cards */}
       <div style={{ display: 'flex', gap: 8 }}>
