@@ -335,17 +335,20 @@ export function GroupDetailScreen({
             <div style={dayDividerStyle}>{g.label}</div>
             {g.items.map((e) => {
               const open = expandedId === e.id;
+              const refund = e.amount < 0;
               return (
                 <Card key={e.id} onClick={() => setExpandedId(open ? null : e.id)}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                      <span style={{ fontSize: 22 }}>{categoryIcon(e.category)}</span>
+                      <span style={{ fontSize: 22 }}>{refund ? '↩️' : categoryIcon(e.category)}</span>
                       <div>
                         <div>{e.description}</div>
-                        <div style={{ fontSize: 13, color: theme.hint }}>Paid by {nameOf(e.paidBy)}</div>
+                        <div style={{ fontSize: 13, color: theme.hint }}>
+                          {refund ? `Refund to ${nameOf(e.paidBy)}` : `Paid by ${nameOf(e.paidBy)}`}
+                        </div>
                       </div>
                     </div>
-                    <strong>{formatMoney(e.amount, e.currency)}</strong>
+                    <strong style={refund ? { color: '#2e7d32' } : undefined}>{formatMoney(e.amount, e.currency)}</strong>
                   </div>
                   {open && (
                     <div style={{ marginTop: 8, borderTop: `1px solid ${theme.secondaryBg}`, paddingTop: 8 }}>

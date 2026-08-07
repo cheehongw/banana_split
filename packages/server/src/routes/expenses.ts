@@ -94,10 +94,11 @@ expensesRoute.post('/', async (c) => {
     .run();
 
   if (group.telegramChatId && group.notificationsEnabled) {
-    await notifyGroup(
-      group.telegramChatId,
-      `🍈 New expense: ${body.description.trim()} — ${formatMoney(body.amount, currency)}`,
-    );
+    const label =
+      body.amount < 0
+        ? `↩️ New refund: ${body.description.trim()} — ${formatMoney(-body.amount, currency)}`
+        : `🍈 New expense: ${body.description.trim()} — ${formatMoney(body.amount, currency)}`;
+    await notifyGroup(group.telegramChatId, label);
   }
 
   return c.json({ id }, 201);
@@ -152,10 +153,11 @@ expensesRoute.patch('/:id', async (c) => {
   });
 
   if (group.telegramChatId && group.notificationsEnabled) {
-    await notifyGroup(
-      group.telegramChatId,
-      `✏️ Edited expense: ${body.description.trim()} — ${formatMoney(body.amount, currency)}`,
-    );
+    const label =
+      body.amount < 0
+        ? `↩️ Edited refund: ${body.description.trim()} — ${formatMoney(-body.amount, currency)}`
+        : `✏️ Edited expense: ${body.description.trim()} — ${formatMoney(body.amount, currency)}`;
+    await notifyGroup(group.telegramChatId, label);
   }
 
   return c.json({ id });

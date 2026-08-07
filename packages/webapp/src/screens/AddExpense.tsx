@@ -27,7 +27,8 @@ export function AddExpense({
   const { group, members } = detail;
   const editing = !!expense;
   const [description, setDescription] = useState(expense?.description ?? '');
-  const [amount, setAmount] = useState(expense ? toAmountInput(expense.amount, expense.currency) : '');
+  const [isRefund, setIsRefund] = useState(expense ? expense.amount < 0 : false);
+  const [amount, setAmount] = useState(expense ? toAmountInput(Math.abs(expense.amount), expense.currency) : '');
   const [paidBy, setPaidBy] = useState<number>(expense?.paidBy ?? members[0]?.id ?? 0);
   const [splitType, setSplitType] = useState<SplitType>(expense?.splitType ?? 'equal');
   const [category, setCategory] = useState<string>(expense?.category ?? DEFAULT_CATEGORY);
@@ -41,7 +42,9 @@ export function AddExpense({
       : {},
   );
   const [exact, setExact] = useState<Record<number, string>>(() =>
-    expense ? Object.fromEntries(expense.splits.map((s) => [s.userId, toAmountInput(s.amount, expense.currency)])) : {},
+    expense
+      ? Object.fromEntries(expense.splits.map((s) => [s.userId, toAmountInput(Math.abs(s.amount), expense.currency)]))
+      : {},
   );
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -49,6 +52,9 @@ export function AddExpense({
   const [deleting, setDeleting] = useState(false);
 
   const cents = parseMoney(amount, currency);
+  // A refund is stored as a negative total; the amount input stays a positive
+  // magnitude and we flip the sign here.
+  const signedCents = cents == null ? null : isRefund ? -cents : cents;
   const participants = members.filter((m) => selected.has(m.id)).map((m) => m.id);
 
   function toggle(id: number) {
@@ -59,20 +65,26 @@ export function AddExpense({
     });
   }
 
+  // Exact amounts are entered as positive magnitudes; a refund negates each.
+  function signedExact() {
+    const m = mapCents(exact, participants, currency);
+    return isRefund ? Object.fromEntries(Object.entries(m).map(([k, v]) => [Number(k), -v])) : m;
+  }
+
   // Live preview of per-person amounts, reusing the exact same math the server uses.
   const preview = useMemo(() => {
-    if (cents == null || participants.length === 0) return { error: null, splits: [] };
+    if (signedCents == null || participants.length === 0) return { error: null, splits: [] };
     try {
-      const splits = resolveSplits(splitType, cents, participants, {
+      const splits = resolveSplits(splitType, signedCents, participants, {
         shares: mapNumbers(weights, participants),
-        exact: mapCents(exact, participants, currency),
+        exact: signedExact(),
       });
       return { error: null as string | null, splits };
     } catch (e) {
       return { error: (e as Error).message, splits: [] };
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cents, currency, splitType, participants.join(','), JSON.stringify(weights), JSON.stringify(exact)]);
+  }, [signedCents, currency, splitType, participants.join(','), JSON.stringify(weights), JSON.stringify(exact), isRefund]);
 
   const nameOf = (id: number) => members.find((m) => m.id === id)?.firstName ?? `User ${id}`;
 
@@ -86,14 +98,14 @@ export function AddExpense({
     const body: AddExpenseInput = {
       groupId: group.id,
       description: description.trim(),
-      amount: cents,
+      amount: signedCents as number,
       paidBy,
       splitType,
       participants,
       category,
       currency,
       ...(splitType === 'shares' && { shares: mapNumbers(weights, participants) }),
-      ...(splitType === 'exact' && { exact: mapCents(exact, participants, currency) }),
+      ...(splitType === 'exact' && { exact: signedExact() }),
     };
 
     setSaving(true);
@@ -132,7 +144,7 @@ export function AddExpense({
   // browser fallback when there's no MainButton (returns false).
   const canSave = !saving && !!description.trim() && cents != null && cents > 0 && participants.length > 0 && !preview.error;
   const hasMainButton = useMainButton({
-    text: saving ? 'Saving…' : editing ? 'Save changes' : 'Save expense',
+    text: saving ? 'Saving…' : editing ? 'Save changes' : isRefund ? 'Save refund' : 'Save expense',
     visible: true,
     enabled: canSave,
     progress: saving,
@@ -140,8 +152,13 @@ export function AddExpense({
   });
 
   return (
-    <Screen title={editing ? 'Edit expense' : 'Add expense'} onBack={onBack}>
+    <Screen title={`${editing ? 'Edit' : 'Add'} ${isRefund ? 'refund' : 'expense'}`} onBack={onBack}>
       {error && <p style={{ color: theme.destructive }}>{error}</p>}
+
+      <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, cursor: 'pointer' }}>
+        <input type="checkbox" checked={isRefund} onChange={(e) => setIsRefund(e.target.checked)} />
+        <span style={{ fontSize: 14 }}>This is a refund (money paid back to the group)</span>
+      </label>
 
       <Field label="Description">
         <input style={inputStyle} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Dinner" />
@@ -258,7 +275,7 @@ export function AddExpense({
       {!hasMainButton && (
         <div style={{ marginTop: 20 }}>
           <Button onClick={submit} disabled={!canSave}>
-            {saving ? 'Saving…' : editing ? 'Save changes' : 'Save expense'}
+            {saving ? 'Saving…' : editing ? 'Save changes' : isRefund ? 'Save refund' : 'Save expense'}
           </Button>
         </div>
       )}

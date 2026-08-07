@@ -65,8 +65,11 @@ export function resolveSplits(
   participants: number[],
   opts: SplitOptions = {},
 ): ExpenseSplit[] {
-  if (!Number.isInteger(total) || total <= 0) {
-    throw new Error('amount must be a positive integer in minor units');
+  // A refund is modelled as a NEGATIVE total (money paid back to the group), so
+  // allow negatives here; only zero and non-integers are rejected. The equal /
+  // shares / exact resolvers all preserve sign and still sum exactly to `total`.
+  if (!Number.isInteger(total) || total === 0) {
+    throw new Error('amount must be a non-zero integer in minor units');
   }
   switch (splitType) {
     case 'equal':
