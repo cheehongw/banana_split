@@ -1,16 +1,19 @@
 import type { Group } from '@banana-split/shared';
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
+import { parseGroupRef } from '../lib/joinRef';
 import { markTutorialSeen, tutorialSeen } from '../lib/tutorial';
 import { useMainButton } from '../lib/useMainButton';
 import { Button, Card, EmptyState, Field, inputStyle, Screen, SectionHeader, SkeletonCard, theme } from '../ui';
 
-export function Groups({ onOpen }: { onOpen: (groupId: string) => void }) {
+export function Groups({ onOpen, notice }: { onOpen: (groupId: string) => void; notice?: string | null }) {
   const [groups, setGroups] = useState<Group[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [title, setTitle] = useState('');
   const [creating, setCreating] = useState(false);
+  const [joinInput, setJoinInput] = useState('');
+  const [joining, setJoining] = useState(false);
   const [showTutorial, setShowTutorial] = useState(!tutorialSeen());
 
   function dismissTutorial() {
@@ -44,6 +47,25 @@ export function Groups({ onOpen }: { onOpen: (groupId: string) => void }) {
     }
   }
 
+  // Join an existing group by its id. Accept either a bare id or a pasted deep
+  // link (t.me/<bot>?startapp=<id>) — normally the deep link auto-joins, but this
+  // is the manual escape hatch when the link did not launch the Mini App.
+  async function join() {
+    const groupId = parseGroupRef(joinInput);
+    if (!groupId) return;
+    setJoining(true);
+    setError(null);
+    try {
+      await api.joinGroup(groupId);
+      setJoinInput('');
+      onOpen(groupId);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setJoining(false);
+    }
+  }
+
   // Native MainButton for "Create group"; in-page Create button is the fallback.
   const hasMainButton = useMainButton({
     text: creating ? 'Creating…' : 'Create group',
@@ -55,6 +77,7 @@ export function Groups({ onOpen }: { onOpen: (groupId: string) => void }) {
 
   return (
     <Screen title="🍈 Melon Splat">
+      {notice && <p style={{ color: theme.destructive }}>{notice}</p>}
       {error && <p style={{ color: theme.destructive }}>{error}</p>}
 
       {showTutorial && (
@@ -90,6 +113,23 @@ export function Groups({ onOpen }: { onOpen: (groupId: string) => void }) {
               </Button>
             </div>
           )}
+        </div>
+      </Field>
+
+      <Field label="Join a group">
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input
+            style={inputStyle}
+            placeholder="Paste a group link or id"
+            value={joinInput}
+            onChange={(e) => setJoinInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && join()}
+          />
+          <div style={{ width: 100, flexShrink: 0 }}>
+            <Button onClick={join} disabled={joining || !joinInput.trim()}>
+              {joining ? 'Joining…' : 'Join'}
+            </Button>
+          </div>
         </div>
       </Field>
 
