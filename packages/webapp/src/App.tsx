@@ -18,6 +18,9 @@ type View =
 
 export function App() {
   const [view, setView] = useState<View>({ name: 'groups' });
+  // A failed deep-link auto-join surfaces here, shown on the groups list, so the
+  // user learns why the app opened without the group they tapped.
+  const [joinError, setJoinError] = useState<string | null>(null);
 
   // Opened via the bot's deep link (t.me/<bot>?startapp=<groupId>): join that
   // group as the current user, then jump straight into it.
@@ -27,8 +30,10 @@ export function App() {
     api
       .joinGroup(groupId)
       .then(() => setView({ name: 'group', groupId }))
-      .catch(() => {
-        /* group gone or not joinable — fall back to the groups list */
+      .catch((e: unknown) => {
+        // Group gone or not joinable — fall back to the groups list, but tell
+        // the user instead of failing silently.
+        setJoinError(`Could not join that group: ${e instanceof Error ? e.message : String(e)}`);
       });
   }, []);
 
@@ -69,6 +74,6 @@ export function App() {
       return <ManageUsers groupId={view.groupId} onBack={() => setView({ name: 'group', groupId: view.groupId })} />;
     case 'groups':
     default:
-      return <Groups onOpen={(groupId) => setView({ name: 'group', groupId })} />;
+      return <Groups onOpen={(groupId) => setView({ name: 'group', groupId })} notice={joinError} />;
   }
 }
