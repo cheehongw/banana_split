@@ -46,16 +46,18 @@ function as(userId: number, path: string, init: RequestInit = {}): Promise<Respo
       'X-Telegram-Init-Data': initDataFor({ id: userId }),
       ...(init.headers ?? {}),
     },
-  });
+  }) as Promise<Response>;
 }
 
 const json = (body: unknown): RequestInit => ({ method: 'POST', body: JSON.stringify(body) });
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const j = async (res: Response): Promise<any> => res.json();
 
 /** Create a group owned by `userId`; returns its id. */
 async function makeGroup(userId: number, title = 'Trip', currency = 'USD'): Promise<string> {
   const res = await as(userId, '/groups', json({ title, currency }));
   expect(res.status).toBe(201);
-  return (await res.json()).id as string;
+  return (await j(res)).id as string;
 }
 
 beforeAll(() => {
@@ -86,7 +88,7 @@ describe('auth', () => {
   it('accepts validly signed initData', async () => {
     const res = await as(1, '/me');
     expect(res.status).toBe(200);
-    expect((await res.json()).id).toBe(1);
+    expect((await j(res)).id).toBe(1);
   });
 });
 
@@ -95,7 +97,7 @@ describe('groups + membership authorization', () => {
     const id = await makeGroup(1);
     const res = await as(1, '/groups');
     expect(res.status).toBe(200);
-    expect((await res.json()).map((g: { id: string }) => g.id)).toContain(id);
+    expect((await j(res)).map((g: { id: string }) => g.id)).toContain(id);
   });
 
   it('forbids a non-member from reading a group', async () => {
@@ -121,7 +123,7 @@ describe('expenses', () => {
     }));
     expect(res.status).toBe(201);
 
-    const bal = await (await as(1, `/settlements/balances?groupId=${id}`)).json();
+    const bal = await j(await as(1, `/settlements/balances?groupId=${id}`));
     const net = Object.fromEntries(bal.balances.map((b: { userId: number; net: number }) => [b.userId, b.net]));
     expect(net[1]).toBe(500); // paid 1000, owes 500 → +500
     expect(net[2]).toBe(-500);
@@ -139,15 +141,15 @@ describe('expenses', () => {
   it('edits an expense (PATCH replaces amount + splits)', async () => {
     const id = await makeGroup(1);
     await as(2, `/groups/${id}/join`, { method: 'POST' });
-    const eid = (await (await as(1, '/expenses', json({
+    const eid = (await j(await as(1, '/expenses', json({
       groupId: id, description: 'Dinner', amount: 1000, paidBy: 1, splitType: 'equal', participants: [1, 2],
-    }))).json()).id;
+    })))).id;
 
     await as(1, `/expenses/${eid}`, { ...json({
       groupId: id, description: 'Dinner (fixed)', amount: 2000, paidBy: 1, splitType: 'equal', participants: [1, 2],
     }), method: 'PATCH' });
 
-    const list = await (await as(1, `/expenses?groupId=${id}`)).json();
+    const list = await j(await as(1, `/expenses?groupId=${id}`));
     expect(list).toHaveLength(1);
     expect(list[0].amount).toBe(2000);
     expect(list[0].description).toBe('Dinner (fixed)');
@@ -156,11 +158,11 @@ describe('expenses', () => {
 
   it('deletes an expense and its splits', async () => {
     const id = await makeGroup(1);
-    const eid = (await (await as(1, '/expenses', json({
+    const eid = (await j(await as(1, '/expenses', json({
       groupId: id, description: 'x', amount: 1000, paidBy: 1, splitType: 'equal', participants: [1],
-    }))).json()).id;
+    })))).id;
     expect((await as(1, `/expenses/${eid}`, { method: 'DELETE' })).status).toBe(200);
-    expect(await (await as(1, `/expenses?groupId=${id}`)).json()).toHaveLength(0);
+    expect(await j(await as(1, `/expenses?groupId=${id}`))).toHaveLength(0);
   });
 });
 
@@ -174,7 +176,7 @@ describe('refunds (negative expenses)', () => {
     const res = await as(1, '/expenses', json({ groupId: id, description: 'Refund', amount: -400, paidBy: 1, splitType: 'equal', participants: [1, 2] }));
     expect(res.status).toBe(201);
 
-    const bal = await (await as(1, `/settlements/balances?groupId=${id}`)).json();
+    const bal = await j(await as(1, `/settlements/balances?groupId=${id}`));
     const net = Object.fromEntries(bal.balances.map((b: { userId: number; net: number }) => [b.userId, b.net]));
     // 1 net outlay 600, own share 300 → owed 300; 2 owes 300.
     expect(net[1]).toBe(300);
@@ -193,7 +195,7 @@ describe('placeholders + claim (merge)', () => {
     const id = await makeGroup(1);
 
     // Add a placeholder "Alex".
-    const ph = await (await as(1, `/groups/${id}/placeholders`, json({ name: 'Alex' }))).json();
+    const ph = await j(await as(1, `/groups/${id}/placeholders`, json({ name: 'Alex' })));
     expect(ph.id).toBeLessThan(0);
     expect(ph.isPlaceholder).toBe(true);
 
@@ -206,11 +208,11 @@ describe('placeholders + claim (merge)', () => {
     expect(claim.status).toBe(200);
 
     // Placeholder is gone; its split is now user 2's; balances reflect 2 owing 1.
-    const detail = await (await as(2, `/groups/${id}`)).json();
+    const detail = await j(await as(2, `/groups/${id}`));
     expect(detail.members.map((m: { id: number }) => m.id).sort()).toEqual([1, 2]);
     expect(detail.members.some((m: { id: number }) => m.id < 0)).toBe(false);
 
-    const bal = await (await as(2, `/settlements/balances?groupId=${id}`)).json();
+    const bal = await j(await as(2, `/settlements/balances?groupId=${id}`));
     const net = Object.fromEntries(bal.balances.map((b: { userId: number; net: number }) => [b.userId, b.net]));
     expect(net[1]).toBe(450);
     expect(net[2]).toBe(-450);
@@ -219,7 +221,7 @@ describe('placeholders + claim (merge)', () => {
   it('sums split amounts when the claimer was already on the same expense', async () => {
     const id = await makeGroup(1);
     await as(2, `/groups/${id}/join`, { method: 'POST' });
-    const ph = await (await as(1, `/groups/${id}/placeholders`, json({ name: 'Ghost' }))).json();
+    const ph = await j(await as(1, `/groups/${id}/placeholders`, json({ name: 'Ghost' })));
 
     // 1 pays 900 split three ways: 1, 2, placeholder → 300 each.
     await as(1, '/expenses', json({ groupId: id, description: 'Trip', amount: 900, paidBy: 1, splitType: 'equal', participants: [1, 2, ph.id] }));
@@ -227,12 +229,12 @@ describe('placeholders + claim (merge)', () => {
     // 2 claims the placeholder: 2's own 300 + placeholder's 300 should merge → 600.
     expect((await as(2, `/groups/${id}/claim`, json({ placeholderId: ph.id }))).status).toBe(200);
 
-    const list = await (await as(1, `/expenses?groupId=${id}`)).json();
+    const list = await j(await as(1, `/expenses?groupId=${id}`));
     const splitFor2 = list[0].splits.find((s: { userId: number }) => s.userId === 2);
     expect(splitFor2.amount).toBe(600);
     expect(list[0].splits.some((s: { userId: number }) => s.userId < 0)).toBe(false);
 
-    const bal = await (await as(1, `/settlements/balances?groupId=${id}`)).json();
+    const bal = await j(await as(1, `/settlements/balances?groupId=${id}`));
     const net = Object.fromEntries(bal.balances.map((b: { userId: number; net: number }) => [b.userId, b.net]));
     expect(net[1]).toBe(600); // paid 900, own share 300
     expect(net[2]).toBe(-600);

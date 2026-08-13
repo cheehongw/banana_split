@@ -227,7 +227,6 @@ expensesRoute.post('/', async (c) => {
   });
 
   if (group.telegramChatId && group.notificationsEnabled) {
-  if (group.telegramChatId && group.notificationsEnabled) {
     const label =
       resolved.amount < 0
         ? `↩️ New refund: ${body.description.trim()} — ${formatMoney(-resolved.amount, resolved.currency)}`
@@ -282,7 +281,6 @@ expensesRoute.patch('/:id', async (c) => {
     insertItems(tx, id, resolved.itemRows);
   });
 
-  if (group.telegramChatId && group.notificationsEnabled) {
   if (group.telegramChatId && group.notificationsEnabled) {
     const label =
       resolved.amount < 0
