@@ -62,6 +62,26 @@ Sanity check: `curl https://banana.<tailnet>.ts.net/health` → `{"ok":true}`.
   Copies the `.sqlite` plus `-wal`/`-shm`. Put it in a nightly cron.
 - **Regenerate migrations** after any schema change: `npm run db:generate`, commit the SQL.
 
+## Receipt scanning (optional)
+Itemized expenses can pre-fill line items from a receipt photo via an optional
+OCR sidecar (Tesseract + geometry parsing) — self-hosted, no external service.
+Off by default; the manual itemized flow works without it.
+
+1. In `.env`: `RECEIPT_PARSER=sidecar` and `RECEIPT_PARSER_URL=http://ocr:8000`.
+2. Start the app **and** the sidecar (note the profile flag):
+   ```bash
+   docker compose --profile ocr up -d --build
+   ```
+   The `ocr` service is internal-only (no published ports); the app reaches it
+   on the compose network. Build it on the host so it matches the CPU arch.
+3. In the Mini App: **Add expense → Split: itemized → 📷 Scan receipt**.
+
+The parser is swappable behind the same `POST /api/receipts/parse` contract — to
+try PaddleOCR / an LLM / a cloud API later, replace `deploy/ocr` (or point
+`RECEIPT_PARSER_URL` elsewhere); the app and UI don't change. Leave
+`RECEIPT_PARSER` unset (or `none`) to disable — scanning then returns 501 and
+users add items by hand.
+
 ## Troubleshooting
 - **Funnel unreachable** → recheck the `funnel` ACL attribute + HTTPS certs; `docker compose exec tailscale tailscale funnel status`.
 - **Bot `409 Conflict`** → another instance is polling the same token (stop the dev bot).

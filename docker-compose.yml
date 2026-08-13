@@ -32,6 +32,16 @@ services:
     depends_on:
       - app
 
+  # Optional receipt-parser sidecar (itemized-expense scanning). Off by default —
+  # start it with `docker compose --profile ocr up -d --build`, and set
+  # RECEIPT_PARSER=sidecar + RECEIPT_PARSER_URL=http://ocr:8000 in .env.
+  ocr:
+    build: ./deploy/ocr
+    restart: unless-stopped
+    profiles: ["ocr"]
+    expose:
+      - "8000" # internal only; reached by the app over the compose network
+
 volumes:
   bananadata:
   tsstate:
